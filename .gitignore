@@ -1,0 +1,20 @@
+# Segredos: nunca vão para o GitHub
+.env
+*.env
+.env.*
+.Renviron
+*.pem
+*.key
+credentials*
+secrets*
+
+# Arquivos temporários do R / RStudio
+.Rhistory
+.RData
+.Rapp.history
+.Rproj.user/
+rsconnect/
+
+# Sistema
+Thumbs.db
+.DS_Store
