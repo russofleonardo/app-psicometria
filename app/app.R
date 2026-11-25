@@ -120,7 +120,10 @@ aba_itens <- nav_panel(
     )
   ),
   card(
-    card_header("Diário de decisões"),
+    card_header(class = "d-flex align-items-center",
+                "Diário de decisões",
+                actionButton("reiniciar_diario", "Reiniciar o diário", icon = icon("eraser"),
+                             class = "btn-sm btn-outline-secondary ms-auto")),
     p(class = "small text-muted",
       "Cada vez que você tira ou recoloca itens, o app registra como ficaram os principais resultados, com a configuração usada no momento. ",
       "Para comparar em detalhe duas situações, use “Guardar esta solução para comparar” na aba 4."),
@@ -1164,6 +1167,12 @@ server <- function(input, output, session) {
     }
     isolate(diario(rbind(diario(), nova)))
     acao_pendente(NULL)
+  })
+
+  # Reiniciar: apaga o histórico e começa de novo a partir da situação atual
+  observeEvent(input$reiniciar_diario, {
+    diario(NULL)
+    acao_pendente(sprintf("Novo começo (%d itens)", length(incluidos())))
   })
 
   output$diario <- renderUI({

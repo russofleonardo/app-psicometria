@@ -815,29 +815,33 @@ tabela_itens <- function(diag, excluidos, alfas, manual) {
         value = j, selected = if (atual == as.character(j)) NA, rotulo_fator[j])),
       list(htmltools::tags$option(value = "0", selected = if (atual == "0") NA, "Fora das escalas")))
     seletor <- htmltools::tags$select(
-      class = "form-select form-select-sm", style = "min-width:12.5rem;",
+      class = "form-select form-select-sm", style = "min-width:14rem;",
       title = "De qual escala este item faz parte (para o alfa e o ômega da aba 6). “Auto” = pela maior carga.",
       onchange = sprintf("Shiny.setInputValue('escala_item', {item: '%s', escala: this.value}, {priority: 'event'})", cod),
       opcoes)
 
-    alfa_txt <- if (is.na(d$alfa_sem)) htmltools::span(class = "text-muted", "—") else htmltools::tags$span(
-      fmt(d$alfa_sem, 2),
-      htmltools::tags$span(
+    # Valor em cima; a diferença em relação ao alfa atual da escala, embaixo
+    alfa_txt <- if (is.na(d$alfa_sem)) htmltools::span(class = "text-muted", "—") else htmltools::tagList(
+      htmltools::div(fmt(d$alfa_sem, 2)),
+      htmltools::div(
         class = "small", style = if (d$delta > 0.01) "color:#c98500;font-weight:700;" else "color:#898781;",
-        sprintf(" (%s%s)", if (d$delta >= 0) "+" else "−", fmt(abs(d$delta), 2))))
+        {
+          dr <- round(d$delta, 2)
+          if (dr == 0) "0,00" else sprintf("%s%s", if (dr > 0) "+" else "−", fmt(abs(dr), 2))
+        }))
 
     sinais <- if (nzchar(d$sinais)) strsplit(d$sinais, "|", fixed = TRUE)[[1]] else character(0)
     nivel_sinal <- function(s) if (grepl("Heywood|baixo \\(< 0,50\\)|nenhuma", s)) "ruim" else "atencao"
 
     tr(td(caixa),
-       td(style = "white-space:nowrap;", chip_item(cod)),
+       td(style = "min-width:12rem;", chip_item(cod)),
        td(class = "text-end", style = estilo_num,
           if (!is.na(d$msa) && d$msa < 0.5) htmltools::span(style = "color:#d03b3b;font-weight:700;", fmt(d$msa, 2)) else fmt(d$msa, 2)),
        td(class = "text-end", style = estilo_num, fmt(d$h2, 2)),
        td(style = estilo_num, sprintf("%s (%s)", d$fator, fmt_sinal(d$carga))),
        td(seletor),
        td(class = "text-end", style = estilo_num, alfa_txt),
-       td(class = "small", style = "min-width:11rem;",
+       td(class = "small", style = "min-width:10rem;",
           if (length(sinais) == 0) htmltools::span(class = "text-muted", "—")
           else lapply(sinais, function(s) htmltools::div(selo(nivel_sinal(s), s)))))
   })
@@ -851,10 +855,12 @@ tabela_itens <- function(diag, excluidos, alfas, manual) {
         th("Item"),
         th(class = "text-end", title = "KMO do item: o quanto ele compartilha com os demais", "KMO"),
         th(class = "text-end", title = "Comunalidade: quanto do item os fatores explicam", "h²"),
-        th("Maior carga"),
-        th("Escala (para o alfa)"),
-        th(class = "text-end", title = "Alfa que a escala do item teria sem ele (entre parênteses, a diferença)", "Alfa sem o item"),
-        th("Sinais para investigar"))),
+        th(style = "white-space:nowrap;", "Maior carga"),
+        th(style = "white-space:nowrap;", title = "De qual escala o item faz parte, para o alfa e o ômega (aba 6)", "Escala (para o alfa)"),
+        th(class = "text-end", style = "white-space:nowrap;",
+           title = "Alfa que a escala do item teria sem ele; embaixo, a diferença em relação ao alfa atual da escala",
+           "Alfa sem", htmltools::tags$br(), "o item"),
+        th(title = "Sinais para investigar — não são ordens de exclusão", "Sinais"))),
       htmltools::tags$tbody(linhas)
     )
   )
