@@ -165,10 +165,12 @@ legenda_dominios <- function() {
 
 # Selo de situação: ícone + texto (nunca só cor)
 selo <- function(nivel, texto) {
+  # "︎" pede ao navegador o símbolo de texto (que aceita cor),
+  # e não o emoji colorido.
   estilos <- list(
-    bom     = c("✔", "#0ca30c"),
-    atencao = c("⚠", "#c98500"),
-    ruim    = c("✖", "#d03b3b")
+    bom     = c("✔︎", "#0ca30c"),
+    atencao = c("⚠︎", "#c98500"),
+    ruim    = c("✖︎", "#d03b3b")
   )
   e <- estilos[[nivel]]
   htmltools::tags$span(
@@ -195,5 +197,215 @@ tabela_msa <- function(kmo_res) {
       htmltools::tags$th("Item"), htmltools::tags$th(class = "text-end", "KMO do item"),
       htmltools::tags$th("Classificação"))),
     htmltools::tags$tbody(linhas)
+  )
+}
+
+# =====================================================================
+# 4. PEÇAS DAS ABAS 4 A 6 (CARGAS, ROTAÇÃO, FATORES E ALFA)
+# =====================================================================
+
+# Número com sinal de menos tipográfico: -0,45 -> "−0,45"
+fmt_sinal <- function(x, d = 2) {
+  x <- round(x, d)
+  x[x == 0] <- 0          # evita "−0,00"
+  sub("^-", "−", fmt(x, d))
+}
+
+# Fundo de uma célula: vermelho (positivo) ou azul (negativo), mais forte
+# quanto mais longe de zero — as mesmas cores do mapa de calor.
+cor_fundo <- function(x) {
+  a <- round(0.10 + 0.45 * min(abs(x), 1), 2)
+  if (x >= 0) sprintf("rgba(227,73,72,%s)", a) else sprintf("rgba(57,135,229,%s)", a)
+}
+
+# Código do item com o quadradinho do domínio (versão curta do chip_item)
+chip_codigo <- function(codigo, invertido = FALSE) {
+  htmltools::tags$span(
+    class = "text-nowrap me-2",
+    title = itens[codigo, "nome"],
+    htmltools::tags$span(style = sprintf(
+      "display:inline-block;width:.75em;height:.75em;border-radius:2px;margin-right:.3em;vertical-align:-.05em;background:%s;",
+      itens[codigo, "cor"])),
+    codigo,
+    if (invertido) htmltools::tags$span(class = "text-muted", " (inv.)")
+  )
+}
+
+estilo_num <- "font-variant-numeric:tabular-nums;white-space:nowrap;"
+
+# --- Tabela de cargas (aba 4) -----------------------------------------
+tabela_cargas <- function(afe, corte, agrupar = TRUE) {
+  L <- afe$L
+  k <- ncol(L)
+  cls <- classificar_itens(L, corte)
+  ordem <- if (agrupar) order(cls$principal, -abs(cls$carga)) else seq_len(nrow(L))
+
+  linhas <- lapply(seq_along(ordem), function(pos) {
+    i <- ordem[pos]
+    cod <- rownames(L)[i]
+    # Linha mais grossa quando começa um novo grupo de fator
+    novo_grupo <- agrupar && pos > 1 && cls$principal[i] != cls$principal[ordem[pos - 1]]
+    borda <- if (novo_grupo) sprintf("border-top:2px solid %s;", EIXO) else ""
+
+    celulas <- lapply(seq_len(k), function(f) {
+      x <- L[i, f]
+      estilo <- if (abs(x) >= corte) sprintf("font-weight:700;background:%s;", cor_fundo(x))
+                else sprintf("color:%s;", TINTA_FRACA)
+      htmltools::tags$td(class = "text-end", style = paste0(estilo_num, estilo, borda), fmt_sinal(x))
+    })
+
+    h2 <- afe$h2[[cod]]
+    celula_h2 <- htmltools::tags$td(
+      class = "text-end", style = paste0(estilo_num, borda),
+      if (h2 >= 0.995) selo("ruim", fmt(h2, 2)) else fmt(h2, 2))
+
+    situacao <- switch(cls$situacao[i],
+      ok = "",
+      cruzada = selo("atencao", "carga cruzada"),
+      sem_fator = selo("ruim", "sem fator"))
+
+    htmltools::tags$tr(
+      htmltools::tags$td(style = paste0("white-space:nowrap;", borda), chip_item(cod)),
+      celulas, celula_h2,
+      htmltools::tags$td(class = "small", style = paste0("white-space:nowrap;", borda), situacao)
+    )
+  })
+
+  rodape <- function(rotulo, valores) htmltools::tags$tr(
+    htmltools::tags$th(class = "fw-normal text-muted", rotulo),
+    lapply(valores, function(v) htmltools::tags$td(class = "text-end text-muted", style = estilo_num, v)),
+    htmltools::tags$td(), htmltools::tags$td()
+  )
+
+  htmltools::div(
+    style = "overflow-x:auto;",
+    htmltools::tags$table(
+      class = "table table-sm align-middle mb-0",
+      htmltools::tags$thead(htmltools::tags$tr(
+        htmltools::tags$th("Item"),
+        lapply(colnames(L), function(f) htmltools::tags$th(class = "text-end", f)),
+        htmltools::tags$th(class = "text-end",
+                           title = "Comunalidade: quanto da variância do item os fatores explicam", "h²"),
+        htmltools::tags$th("Situação"))),
+      htmltools::tags$tbody(linhas),
+      htmltools::tags$tfoot(
+        rodape("Autovalor (soma das cargas²)", fmt(afe$ss, 2)),
+        rodape("% da variância", fmt_pct(afe$prop)),
+        if (!afe$obliqua) rodape("% acumulada", fmt_pct(cumsum(afe$prop)))
+      )
+    )
+  )
+}
+
+# --- Gráfico de cargas: um fator contra outro (aba 5) -------------------
+grafico_cargas <- function(L, x = 1, y = 2, corte = 0.3) {
+  preparar_grafico(mar = c(4.2, 4.2, 0.8, 0.8))
+  graphics::plot(NA, xlim = c(-1, 1), ylim = c(-1, 1), asp = 1, axes = FALSE,
+                 xlab = paste("Carga em", colnames(L)[x]),
+                 ylab = paste("Carga em", colnames(L)[y]))
+  # "Zona fraca": cargas abaixo do ponto de corte nos dois fatores
+  graphics::rect(-corte, -corte, corte, corte, col = "#efeee9", border = NA)
+  marcas <- seq(-1, 1, 0.5)
+  graphics::abline(h = marcas, v = marcas, col = GRADE, lwd = 0.8)
+  graphics::abline(h = 0, v = 0, col = EIXO, lwd = 1.5)
+  graphics::axis(1, at = marcas, labels = fmt_sinal(marcas, 1), col = EIXO, tck = -0.015, cex.axis = 0.85)
+  graphics::axis(2, at = marcas, labels = fmt_sinal(marcas, 1), col = EIXO, tck = -0.015, cex.axis = 0.85)
+
+  cores <- itens[rownames(L), "cor"]
+  graphics::points(L[, x], L[, y], pch = 21, bg = cores, col = SUPERFICIE, cex = 1.7, lwd = 1.2)
+  graphics::text(L[, x], L[, y], rownames(L), pos = 3, offset = 0.5, cex = 0.72, col = TINTA_2)
+}
+
+# --- O que a rotação mudou (aba 5) --------------------------------------
+tabela_comparacao_rotacao <- function(sem, com, corte) {
+  niveis <- c("ok", "cruzada", "sem_fator")
+  cs <- table(factor(classificar_itens(sem$L, corte)$situacao, niveis))
+  cc <- table(factor(classificar_itens(com$L, corte)$situacao, niveis))
+
+  linha <- function(rotulo, a, b, destaque = FALSE) htmltools::tags$tr(
+    htmltools::tags$td(if (destaque) htmltools::strong(rotulo) else rotulo),
+    htmltools::tags$td(class = "text-end", style = estilo_num, a),
+    htmltools::tags$td(class = "text-end", style = estilo_num, b))
+
+  htmltools::div(
+    style = "overflow-x:auto;",
+    htmltools::tags$table(
+      class = "table table-sm align-middle",
+      htmltools::tags$thead(htmltools::tags$tr(
+        htmltools::tags$th(""), htmltools::tags$th(class = "text-end", "Antes"),
+        htmltools::tags$th(class = "text-end", "Depois"))),
+      htmltools::tags$tbody(
+        lapply(seq_len(ncol(sem$L)), function(f)
+          linha(paste0("% da variância em ", colnames(sem$L)[f]),
+                fmt_pct(sem$prop[f]), fmt_pct(com$prop[f]))),
+        linha("Variância explicada pelos fatores juntos", fmt_pct(sem$total), fmt_pct(com$total), TRUE),
+        linha("Itens com carga forte em um só fator", cs[["ok"]], cc[["ok"]], TRUE),
+        linha("Itens com carga cruzada", cs[["cruzada"]], cc[["cruzada"]]),
+        linha("Itens sem nenhuma carga forte", cs[["sem_fator"]], cc[["sem_fator"]])
+      )
+    )
+  )
+}
+
+# --- Correlação entre fatores (aba 6) -----------------------------------
+tabela_phi <- function(Phi) {
+  k <- ncol(Phi)
+  htmltools::div(
+    style = "overflow-x:auto;",
+    htmltools::tags$table(
+      class = "table table-sm align-middle", style = "width:auto;",
+      htmltools::tags$thead(htmltools::tags$tr(
+        htmltools::tags$th(""),
+        lapply(colnames(Phi), function(f)
+          htmltools::tags$th(class = "text-end", style = "min-width:4.5em;", f)))),
+      htmltools::tags$tbody(lapply(seq_len(k), function(i) htmltools::tags$tr(
+        htmltools::tags$th(rownames(Phi)[i]),
+        lapply(seq_len(k), function(j) {
+          if (j > i) return(htmltools::tags$td())
+          if (j == i) return(htmltools::tags$td(class = "text-end text-muted", style = estilo_num, "1"))
+          r <- Phi[i, j]
+          estilo <- if (abs(r) >= 0.32) sprintf("font-weight:700;background:%s;", cor_fundo(r)) else ""
+          htmltools::tags$td(class = "text-end", style = paste0(estilo_num, estilo), fmt_sinal(r))
+        })
+      )))
+    )
+  )
+}
+
+# --- Alfa de cada fator (aba 6) -----------------------------------------
+tabela_alfa <- function(alfas) {
+  linhas <- lapply(alfas$fatores, function(f) {
+    n_itens <- length(f$itens)
+    parece <- if (n_itens == 0) htmltools::span(class = "text-muted", "nenhum item")
+      else htmltools::tags$span(
+        htmltools::tags$span(style = sprintf(
+          "display:inline-block;width:.8em;height:.8em;border-radius:2px;margin-right:.4em;vertical-align:-.05em;background:%s;",
+          CORES_DOMINIO[[f$dominio]])),
+        DOMINIOS[[f$dominio]],
+        htmltools::tags$span(class = "text-muted small",
+                             sprintf(" (%d de %d %s)", f$qtd_dominio, n_itens,
+                                     if (n_itens == 1) "item" else "itens")))
+    alfa_txt <- if (is.na(f$alfa)) htmltools::span(class = "text-muted", "—") else fmt(f$alfa, 2)
+    classe <- if (n_itens < 2) htmltools::span(class = "small text-muted", "precisa de 2 ou mais itens")
+      else selo(if (f$alfa >= 0.7) "bom" else if (f$alfa >= 0.6) "atencao" else "ruim", f$classe)
+
+    htmltools::tags$tr(
+      htmltools::tags$th(f$fator),
+      htmltools::tags$td(style = "white-space:nowrap;", parece),
+      htmltools::tags$td(lapply(f$itens, function(cod) chip_codigo(cod, cod %in% f$invertidos))),
+      htmltools::tags$td(class = "text-end", style = estilo_num, alfa_txt),
+      htmltools::tags$td(style = "white-space:nowrap;", classe)
+    )
+  })
+  htmltools::div(
+    style = "overflow-x:auto;",
+    htmltools::tags$table(
+      class = "table table-sm align-middle",
+      htmltools::tags$thead(htmltools::tags$tr(
+        htmltools::tags$th("Fator"), htmltools::tags$th("Parece medir"),
+        htmltools::tags$th("Itens (do mais forte ao mais fraco)"),
+        htmltools::tags$th(class = "text-end", "Alfa"), htmltools::tags$th("Classificação"))),
+      htmltools::tags$tbody(linhas)
+    )
   )
 }
