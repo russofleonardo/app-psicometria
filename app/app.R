@@ -217,7 +217,11 @@ aba_inicio <- nav_panel(
       onclick = paste0(
         "Shiny.setInputValue('missao_escolhida', 1, {priority: 'event'});",
         "bootstrap.Collapse.getOrCreateInstance(document.getElementById('corpo_missoes')).show();",
-        "window.scrollTo({top: 0, behavior: 'smooth'});"),
+        # Neste layout quem rola é a área principal (não a janela): por isso
+        # pedimos ao próprio painel de missões que venha para o topo da tela.
+        "setTimeout(function() {",
+        "  document.querySelector('.painel-missoes').scrollIntoView({behavior: 'smooth', block: 'start'});",
+        "}, 50);"),
       "Começar pela missão 1 →")
   )
 )
