@@ -1,3 +1,5 @@
+# Laboratório de Psicometria – Análise Fatorial Exploratória
+# © 2026 Leonardo Ferreira Russo — licença CC BY-NC-ND 4.0 (veja o arquivo LICENSE)
 # =====================================================================
 # gerar_policoricas.R — calcula e guarda as correlações policóricas das
 # duas amostras mais usadas no app (a completa e a inicial), para que elas

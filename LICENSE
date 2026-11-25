@@ -1,0 +1,35 @@
+Laboratório de Psicometria – Análise Fatorial Exploratória
+Copyright (c) 2026 Leonardo Ferreira Russo
+
+Este trabalho (o código do aplicativo, os textos, as missões, as explicações
+e o material didático) está licenciado sob a licença Creative Commons
+Atribuição-NãoComercial-SemDerivações 4.0 Internacional (CC BY-NC-ND 4.0).
+
+Você pode:
+  - Compartilhar — copiar e redistribuir o material em qualquer meio ou formato.
+
+Desde que:
+  - Atribuição — dê o crédito apropriado ao autor (Leonardo Ferreira Russo),
+    forneça um link para a licença e indique se foram feitas mudanças.
+  - NãoComercial — não use o material para fins comerciais.
+  - SemDerivações — se você remixar, transformar ou criar a partir do material,
+    não pode distribuir o material modificado.
+
+Resumo da licença:  https://creativecommons.org/licenses/by-nc-nd/4.0/deed.pt-br
+Texto legal completo: https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode.pt
+
+Usos fora desses termos (por exemplo, uso comercial ou versões modificadas)
+dependem de autorização prévia e por escrito do autor.
+
+Como citar:
+  Russo, L. F. (2026). Laboratório de Psicometria – Análise Fatorial
+  Exploratória [Aplicativo web]. https://russofleonardo.github.io/app-psicometria/
+
+Componentes de terceiros
+------------------------
+Esta licença não se aplica a componentes de terceiros, que mantêm suas
+próprias licenças, entre eles:
+  - os dados bfi (pacote psych, de William Revelle; itens do International
+    Personality Item Pool, coletados no projeto SAPA);
+  - R, webR, Shinylive e os pacotes shiny, bslib, psych e GPArotation,
+    incluídos na pasta docs/ para o aplicativo rodar no navegador.

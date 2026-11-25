@@ -1,3 +1,5 @@
+# Laboratório de Psicometria – Análise Fatorial Exploratória
+# © 2026 Leonardo Ferreira Russo — licença CC BY-NC-ND 4.0 (veja o arquivo LICENSE)
 # =====================================================================
 # analises.R  —  AS "RECEITAS" (CÁLCULOS DA AFE)
 # ---------------------------------------------------------------------

@@ -8,6 +8,15 @@ Na aba “1. Itens”, a pessoa pode tirar itens da análise e decidir de qual e
 
 São 17 missões, do básico ao desafio, que passam por todas as etapas da AFE: correlações, KMO e Bartlett, número de fatores, cargas e índices de ajuste, rotação, correlação entre fatores e alfa. Cada missão tem objetivo, passos, uma conferência automática dos controles (o botão “Concluí” só é liberado quando tudo está certo) e uma pergunta de reflexão com comentário. O progresso fica salvo no navegador.
 
+## Autoria e licença
+© 2026 **Leonardo Ferreira Russo**.
+
+Este trabalho está licenciado sob a licença [Creative Commons Atribuição-NãoComercial-SemDerivações 4.0 Internacional (CC BY-NC-ND 4.0)](https://creativecommons.org/licenses/by-nc-nd/4.0/deed.pt-br): pode ser compartilhado com crédito ao autor, sem uso comercial e sem versões modificadas. Outros usos dependem de autorização do autor. Veja o arquivo [LICENSE](LICENSE).
+
+**Como citar:** Russo, L. F. (2026). *Laboratório de Psicometria – Análise Fatorial Exploratória* [Aplicativo web]. https://russofleonardo.github.io/app-psicometria/
+
+Os dados (`psych::bfi`) e as ferramentas usadas (R, Shiny, bslib, psych, GPArotation, webR, Shinylive) mantêm suas próprias licenças.
+
 ## Como abrir no computador
 No R, com os pacotes `shiny`, `bslib`, `psych` e `GPArotation` instalados:
 

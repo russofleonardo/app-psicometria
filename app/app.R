@@ -1,3 +1,5 @@
+# Laboratório de Psicometria – Análise Fatorial Exploratória
+# © 2026 Leonardo Ferreira Russo — licença CC BY-NC-ND 4.0 (veja o arquivo LICENSE)
 # =====================================================================
 # app.R  —  O "MAESTRO" DO APP
 # ---------------------------------------------------------------------
@@ -79,7 +81,14 @@ barra_lateral <- sidebar(
 
   div(class = "small mt-2",
       uiOutput("resumo_itens_lateral"),
-      actionLink("editar_itens", "Escolher os itens (aba 1)", class = "small"))
+      actionLink("editar_itens", "Escolher os itens (aba 1)", class = "small")),
+
+  # Autoria e licença (sempre visível)
+  div(class = "small text-muted mt-4 pt-2 border-top",
+      HTML(paste0(
+        "© 2026 <strong>Leonardo Ferreira Russo</strong><br>",
+        "Licença <a href='https://creativecommons.org/licenses/by-nc-nd/4.0/deed.pt-br' target='_blank' rel='noopener'>CC BY-NC-ND 4.0</a>",
+        " · <a href='#' onclick=\"document.querySelector('a[data-value=inicio]').click(); setTimeout(function(){document.getElementById('autoria').scrollIntoView({behavior:'smooth'});}, 150); return false;\">como citar</a>")))
 )
 
 # --- Aba 0: comece aqui (apresentação do laboratório)
@@ -222,7 +231,19 @@ aba_inicio <- nav_panel(
         "setTimeout(function() {",
         "  document.querySelector('.painel-missoes').scrollIntoView({behavior: 'smooth', block: 'start'});",
         "}, 50);"),
-      "Começar pela missão 1 →")
+      "Começar pela missão 1 →"),
+
+    # --- Autoria e licença
+    h5(class = "mt-4", id = "autoria", "Autoria, licença e como citar"),
+    caixa_info(
+      ph(class = "mb-2",
+         "Este laboratório foi criado por <strong>Leonardo Ferreira Russo</strong> © 2026. O código, os textos, as missões e o material didático estão licenciados sob a licença <a href='https://creativecommons.org/licenses/by-nc-nd/4.0/deed.pt-br' target='_blank' rel='noopener'>Creative Commons Atribuição-NãoComercial-SemDerivações 4.0 (CC BY-NC-ND 4.0)</a>."),
+      ph(class = "small mb-2",
+         "Você pode <strong>usar e compartilhar</strong> o laboratório (por exemplo, em aulas), desde que <strong>cite o autor</strong>, <strong>não use para fins comerciais</strong> e <strong>não distribua versões modificadas</strong>. Outros usos dependem de autorização do autor."),
+      ph(class = "small mb-2",
+         "<strong>Como citar:</strong> Russo, L. F. (2026). <em>Laboratório de Psicometria – Análise Fatorial Exploratória</em> [Aplicativo web]. https://russofleonardo.github.io/app-psicometria/"),
+      ph(class = "small text-muted mb-0",
+         "Dados: conjunto <code>bfi</code> do pacote psych (W. Revelle), com itens do International Personality Item Pool, coletados no projeto SAPA. Feito com R, Shiny, bslib, psych, GPArotation e Shinylive, que mantêm suas próprias licenças."))
   )
 )
 
