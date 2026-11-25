@@ -218,7 +218,7 @@ aba_inicio <- nav_panel(
     # --- Como usar
     h5(class = "mt-4", "Como usar o laboratório"),
     tags$ul(
-      tags$li(HTML("<strong>Missões guiadas:</strong> no alto da página. São 17 missões, do básico ao desafio, que guiam você pelas abas. Cada uma diz o que fazer, confere se você fez e termina com uma pergunta para refletir. O seu progresso fica salvo neste navegador.")),
+      tags$li(HTML(sprintf("<strong>Missões guiadas:</strong> no alto da página. São %d missões, do básico ao desafio, que guiam você pelas abas — e terminam com você escolhendo e defendendo o seu próprio modelo. Cada uma diz o que fazer, confere se você fez e termina com uma pergunta para refletir. O seu progresso fica salvo neste navegador.", N_MISSOES))),
       tags$li(HTML("<strong>Barra lateral:</strong> os controles da análise (número de fatores, rotação, tamanho da amostra…). Mexa à vontade: tudo é recalculado na hora, e nada se estraga.")),
       tags$li(HTML("<strong>Ponto de partida:</strong> comece pela missão 1 e siga a ordem."))),
     tags$button(
@@ -610,7 +610,7 @@ script_missoes <- tags$script(HTML("
   $(document).on('shiny:connected', function() {
     var salvo = null;
     try { salvo = JSON.parse(localStorage.getItem('afe_missoes')); } catch (e) {}
-    Shiny.setInputValue('missoes_salvas', salvo || {concluidas: [], atual: 1});
+    Shiny.setInputValue('missoes_salvas', salvo || {versao: 2, concluidas: [], atual: null});
   });
   Shiny.addCustomMessageHandler('salvar_missoes', function(x) {
     try { localStorage.setItem('afe_missoes', JSON.stringify(x)); } catch (e) {}
@@ -646,7 +646,7 @@ ui <- page_sidebar(
   #  * abas com menos espaço lateral, para caberem numa linha só;
   #  * abaixo de 1400 px de largura, as missões sobem para cima das abas.
   tags$style(HTML("
-    .nav-tabs .nav-link { padding: .5rem .7rem; }
+    .nav-tabs .nav-link { padding: .5rem .55rem; font-size: .97rem; }
     .botao-missao { min-width: 2.3rem; }
     .botao-recolher { border: 0; border-radius: 0; }
     .botao-recolher:hover { background: rgba(0,0,0,.04); }
@@ -1362,19 +1362,31 @@ server <- function(input, output, session) {
     list(excluidos = excluidos(), n_excluidos = length(excluidos()),
          n_manuais = length(escalas_manuais()), tem_guardada = !is.null(solucao_guardada()))))
 
-  # Guarda o progresso no navegador
+  # Guarda o progresso no navegador — pelo ID de cada missão (não pela
+  # posição), para que reordenar as missões não bagunce o progresso.
   salvar_missoes <- function() {
-    session$sendCustomMessage("salvar_missoes",
-      list(concluidas = as.list(concluidas()), atual = missao_atual()))
+    session$sendCustomMessage("salvar_missoes", list(
+      versao = 2,
+      concluidas = as.list(IDS_MISSOES[concluidas()]),
+      atual = IDS_MISSOES[[missao_atual()]]))
   }
 
-  # Ao abrir o app, recupera o progresso guardado (se houver)
+  # Ao abrir o app, recupera o progresso guardado (se houver).
+  # Formato novo (versao 2): ids. Formato antigo: números das missões na
+  # ordem antiga, convertidos para ids pela tabela MAPA_IDS_V1.
   observeEvent(input$missoes_salvas, {
     s <- input$missoes_salvas
-    feitas <- suppressWarnings(as.integer(unlist(s$concluidas)))
-    concluidas(sort(unique(feitas[!is.na(feitas) & feitas %in% seq_len(N_MISSOES)])))
-    a <- suppressWarnings(as.integer(s$atual))
-    if (length(a) == 1 && !is.na(a) && a >= 1 && a <= N_MISSOES) missao_atual(a)
+    para_ids <- function(x) {
+      if (identical(as.integer(s$versao), 2L)) return(as.character(unlist(x)))
+      n <- suppressWarnings(as.integer(unlist(x)))
+      MAPA_IDS_V1[n[!is.na(n) & n >= 1 & n <= length(MAPA_IDS_V1)]]
+    }
+    feitas <- match(para_ids(s$concluidas), IDS_MISSOES)
+    concluidas(sort(unique(feitas[!is.na(feitas)])))
+    a <- match(para_ids(s$atual), IDS_MISSOES)
+    if (length(a) == 1 && !is.na(a)) missao_atual(a)
+    # Regrava já no formato novo
+    if (!identical(as.integer(s$versao), 2L) && length(unlist(s$concluidas)) > 0) salvar_missoes()
   }, once = TRUE)
 
   # Trocar de missão (botões numerados e "Próxima missão")
@@ -1445,9 +1457,9 @@ server <- function(input, output, session) {
                            "O botão é liberado quando todos os itens da conferência estiverem marcados.")
       )
     }
-    aviso_itens <- if (k <= 14 && length(excluidos()) > 0) div(
+    aviso_itens <- if (isTRUE(m$usa_todos_itens) && length(excluidos()) > 0) div(
       class = "small mt-2", selo("atencao", sprintf(
-        "Você excluiu itens na aba 1 (%s). As missões 1 a 14 foram pensadas com os 25 itens: os resultados podem ficar diferentes dos comentários.",
+        "Você excluiu itens na aba 1 (%s). Esta missão foi pensada com os 25 itens: os resultados podem ficar diferentes do comentário. Para recolocá-los, use “Recolocar todos os itens”, na aba 1.",
         paste(excluidos(), collapse = ", "))))
     tagList(lista_conferencia(m, ok), botao, aviso_itens)
   })

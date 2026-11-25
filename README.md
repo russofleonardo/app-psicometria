@@ -6,7 +6,7 @@ A aba “0. Comece aqui” apresenta a escala, a atividade, uma explicação con
 
 Na aba “1. Itens”, a pessoa pode tirar itens da análise e decidir de qual escala cada item faz parte, vendo o efeito em todas as abas, com diagnósticos de cada item (sinais para investigar) e um diário de decisões.
 
-São 17 missões, do básico ao desafio, que passam por todas as etapas da AFE: correlações, KMO e Bartlett, número de fatores, cargas e índices de ajuste, rotação, correlação entre fatores e alfa. Cada missão tem objetivo, passos, uma conferência automática dos controles (o botão “Concluí” só é liberado quando tudo está certo) e uma pergunta de reflexão com comentário. O progresso fica salvo no navegador.
+São 20 missões, do básico ao desafio, que passam por todas as etapas da AFE na ordem em que elas são feitas na prática: conhecer os itens, correlações, KMO e Bartlett, número de fatores, índices de ajuste, rotação, interpretação, correlação entre fatores, confiabilidade, tipo de correlação e método de extração, decisões sobre os itens e, por fim, a escolha e a defesa do modelo final. Cada missão tem objetivo, passos, uma conferência automática dos controles (o botão “Concluí” só é liberado quando tudo está certo) e uma pergunta de reflexão com comentário. O progresso fica salvo no navegador.
 
 ## Autoria e licença
 © 2026 **Leonardo Ferreira Russo**.
