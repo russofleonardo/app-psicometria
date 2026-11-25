@@ -79,18 +79,162 @@ barra_lateral <- sidebar(
 
   div(class = "small mt-2",
       uiOutput("resumo_itens_lateral"),
-      actionLink("editar_itens", "Escolher os itens (aba 0)", class = "small"))
+      actionLink("editar_itens", "Escolher os itens (aba 1)", class = "small"))
 )
 
-# --- Aba 0: os itens (incluir/excluir e montar as escalas)
+# --- Aba 0: comece aqui (apresentação do laboratório)
+# Diagrama simples do modelo fatorial: um fator latente (que não vemos)
+# influencia as respostas a três itens (que vemos); cada item tem também
+# uma parte própria (o "erro" ou parte única).
+diagrama_modelo <- HTML('
+<svg viewBox="0 0 560 230" role="img" aria-label="Diagrama: o fator Extroversão influencia as respostas aos itens E3, E4 e E5; cada item também tem uma parte própria" style="width:100%;max-width:560px;height:auto;font-family:inherit;">
+  <defs><marker id="seta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#52514e"/></marker></defs>
+  <ellipse cx="110" cy="115" rx="92" ry="46" fill="#e3f4ec" stroke="#1baf7a" stroke-width="2.5"/>
+  <text x="110" y="110" text-anchor="middle" font-size="16" font-weight="700" fill="#0b0b0b">Extroversão</text>
+  <text x="110" y="131" text-anchor="middle" font-size="12" fill="#52514e">fator (não observado)</text>
+  <g font-size="13" fill="#0b0b0b">
+    <rect x="300" y="22" width="170" height="44" rx="6" fill="#fff" stroke="#c3c2b7" stroke-width="1.5"/>
+    <text x="385" y="49" text-anchor="middle">E3 Sabe cativar as pessoas</text>
+    <rect x="300" y="93" width="170" height="44" rx="6" fill="#fff" stroke="#c3c2b7" stroke-width="1.5"/>
+    <text x="385" y="120" text-anchor="middle">E4 Faz amigos com facilidade</text>
+    <rect x="300" y="164" width="170" height="44" rx="6" fill="#fff" stroke="#c3c2b7" stroke-width="1.5"/>
+    <text x="385" y="191" text-anchor="middle">E5 Assume o comando</text>
+  </g>
+  <g stroke="#52514e" stroke-width="2" marker-end="url(#seta)" fill="none">
+    <path d="M195,98 L296,46"/><path d="M203,115 L296,115"/><path d="M195,132 L296,184"/>
+  </g>
+  <g font-size="12" fill="#52514e" text-anchor="middle">
+    <text x="240" y="62">carga</text>
+  </g>
+  <g stroke="#898781" stroke-width="1.5" marker-end="url(#seta)" fill="none">
+    <path d="M520,44 L474,44"/><path d="M520,115 L474,115"/><path d="M520,186 L474,186"/>
+  </g>
+  <g font-size="12" fill="#52514e">
+    <circle cx="534" cy="44" r="13" fill="#f4f3ef" stroke="#898781"/><text x="534" y="48" text-anchor="middle">u</text>
+    <circle cx="534" cy="115" r="13" fill="#f4f3ef" stroke="#898781"/><text x="534" y="119" text-anchor="middle">u</text>
+    <circle cx="534" cy="186" r="13" fill="#f4f3ef" stroke="#898781"/><text x="534" y="190" text-anchor="middle">u</text>
+  </g>
+</svg>')
+
+caixa_info <- function(..., cor = "#f4f3ef", borda = NULL) div(
+  class = "p-3 mb-3 rounded",
+  style = paste0("background:", cor, ";", if (!is.null(borda)) paste0("border-left:5px solid ", borda, ";")),
+  ...)
+
+# Parágrafo escrito em HTML: assim o negrito fica "colado" à pontuação
+# (sem os espaços extras que aparecem quando se juntam pedaços de texto).
+ph <- function(texto, ...) p(HTML(texto), ...)
+
+passo_aba <- function(numero, nome, pergunta) tags$li(
+  class = "mb-1", HTML(sprintf("<strong>%d. %s</strong> <span class='text-muted'>—</span> %s", numero, nome, pergunta)))
+
+DESCRICOES_DOMINIO <- c(
+  A = "empatia, cooperação, consideração pelos outros",
+  C = "organização, disciplina, responsabilidade",
+  E = "sociabilidade, energia, gosto por estar com pessoas",
+  N = "tendência a sentir emoções negativas, como ansiedade e irritação",
+  O = "curiosidade intelectual, imaginação, interesse por ideias")
+
+aba_inicio <- nav_panel(
+  "0. Comece aqui", value = "inicio",
+  div(
+    style = "max-width:980px;",
+    h4(class = "mt-1", "Bem-vindo ao Laboratório de Análise Fatorial Exploratória"),
+    ph(class = "lead", style = "font-size:1.1rem;",
+       "Aqui você vai aprender Análise Fatorial Exploratória (AFE) <strong>fazendo</strong>: analisando dados reais, tomando decisões como um pesquisador e vendo as consequências de cada escolha."),
+
+    # --- O alerta sobre a aba 1
+    caixa_info(cor = "#fdf5e6", borda = "#c98500",
+      p(class = "fw-bold mb-1", "⚠︎ Antes de começar: não se assuste com a aba 1"),
+      ph(class = "mb-1",
+         "Na próxima aba (<strong>1. Itens</strong>) estão os 25 itens da escala. Ali também aparecem várias colunas e números (KMO, h², cargas, alfa…) que você <strong>ainda não sabe usar</strong> — e está tudo bem."),
+      ph(class = "mb-0",
+         "Por enquanto, <strong>apenas leia os itens</strong> para conhecê-los e siga o passo a passo das <strong>missões</strong>. Mais adiante, com mais conhecimento, você vai voltar a essa aba para tomar decisões sobre os itens.")),
+
+    # --- A escala
+    h5(class = "mt-4", "A escala que vamos analisar"),
+    ph("Vamos trabalhar com <strong>25 itens de personalidade</strong> do modelo dos <strong>Cinco Grandes Fatores</strong> (Big Five), o modelo de personalidade mais estudado da psicologia. Os itens vêm do <em>International Personality Item Pool</em> (IPIP) e foram respondidos on-line por 2.800 pessoas no projeto de pesquisa <em>SAPA</em>. Os dados estão no pacote psych do R (conjunto <code>bfi</code>); usamos as <strong>2.436 pessoas</strong> que responderam a todos os itens."),
+    ph("Cada pessoa disse o quanto cada frase a descreve, numa escala de <strong>1 (discordo totalmente) a 6 (concordo totalmente)</strong>. Os itens foram escritos para medir cinco traços, com 5 itens cada:"),
+    tags$ul(
+      class = "mb-2",
+      lapply(names(DOMINIOS), function(l) tags$li(HTML(sprintf(
+        "<span style='display:inline-block;width:.85em;height:.85em;border-radius:2px;margin-right:.4em;vertical-align:-.05em;background:%s;'></span><strong>%s — %s</strong>: %s",
+        CORES_DOMINIO[[l]], l, DOMINIOS[[l]], DESCRICOES_DOMINIO[[l]]))))),
+    ph(class = "small text-muted",
+       "Alguns itens são <strong>invertidos</strong> (marcados com (−)): concordar com eles indica <em>menos</em> do traço — por exemplo, “E1 Fala pouco” indica menos Extroversão."),
+
+    # --- O que é AFE
+    h5(class = "mt-4", "O que é a Análise Fatorial Exploratória?"),
+    layout_columns(
+      col_widths = breakpoints(sm = 12, lg = c(6, 6)),
+      div(
+        ph("Muitas coisas que a psicologia estuda — como a Extroversão — <strong>não podem ser observadas diretamente</strong>. O que observamos são as <strong>respostas aos itens</strong>."),
+        ph("A ideia central da AFE é simples: se vários itens são influenciados pelo mesmo traço, as respostas a eles <strong>andam juntas</strong> (se correlacionam). Quem é extrovertido tende a concordar com “Faz amigos com facilidade” <em>e</em> com “Sabe cativar as pessoas”."),
+        ph("A AFE olha para as correlações entre todos os itens e procura o <strong>menor número de fatores</strong> (variáveis “escondidas”) capaz de explicá-las. Depois, mostra o quanto cada item está ligado a cada fator — a <strong>carga fatorial</strong>.")
+      ),
+      div(
+        diagrama_modelo,
+        ph(class = "small text-muted mt-1",
+           "O fator (oval) influencia as respostas aos itens (retângulos); a força de cada seta é a carga. Cada item tem também uma parte própria (<strong>u</strong>), que o fator não explica — inclui o erro de medida.")
+      )
+    ),
+    h6(class = "mt-2", "Para que serve na psicometria?"),
+    tags$ul(
+      tags$li(HTML("<strong>Construir instrumentos:</strong> descobrir quais itens “andam juntos” e formam cada escala.")),
+      tags$li(HTML("<strong>Buscar evidências de validade:</strong> verificar se a estrutura dos itens corresponde ao que o instrumento pretende medir (a chamada evidência baseada na estrutura interna).")),
+      tags$li(HTML("<strong>Identificar itens problemáticos:</strong> itens que não se ligam a nenhum fator, ou que se ligam a vários.")),
+      tags$li(HTML("<strong>Resumir:</strong> trocar dezenas de itens por poucos fatores, mais fáceis de interpretar e de pontuar."))),
+    caixa_info(
+      p(class = "small mb-1 fw-bold", "AFE, AFC e ACP — qual a diferença?"),
+      tags$ul(class = "small mb-0",
+        tags$li(HTML("<strong>AFE (exploratória):</strong> os dados mostram quantos fatores há e quais itens se ligam a cada um. É usada quando ainda estamos descobrindo a estrutura.")),
+        tags$li(HTML("<strong>AFC (confirmatória):</strong> o pesquisador diz de antemão qual item pertence a qual fator, e o modelo testa se os dados concordam. Costuma vir depois da AFE, em outra amostra.")),
+        tags$li(HTML("<strong>ACP (análise de componentes principais):</strong> parecida na aparência, mas apenas resume a variação dos itens, sem supor fatores “escondidos” por trás deles. Não é a mesma coisa que AFE.")))),
+
+    # --- A atividade
+    h5(class = "mt-4", "A atividade"),
+    ph("Você vai fazer o papel de quem pesquisa. A pergunta é: <strong>esses 25 itens realmente formam cinco fatores, como a teoria prevê? E todos os itens funcionam bem?</strong> Para responder, você vai percorrer as etapas de uma AFE, na ordem em que elas são feitas na prática:"),
+    tags$ul(
+      class = "list-unstyled ms-3",
+      passo_aba(1, "Itens", "quais são os itens? (por enquanto, só leia — voltaremos aqui no fim)"),
+      passo_aba(2, "Correlações", "os itens se relacionam? Formam grupos?"),
+      passo_aba(3, "KMO e Bartlett", "os dados servem para uma análise fatorial?"),
+      passo_aba(4, "Quantos fatores?", "quantos fatores devemos extrair?"),
+      passo_aba(5, "Cargas fatoriais", "o modelo se ajusta aos dados? Quais itens formam cada fator?"),
+      passo_aba(6, "Rotação", "como deixar os fatores mais fáceis de interpretar?"),
+      passo_aba(7, "Fatores e alfa", "os fatores se relacionam? As escalas são confiáveis?")),
+    ph("No fim, com tudo isso aprendido, você <strong>volta à aba 1</strong> para tomar decisões sobre os itens — tirar um item fraco, decidir a escala de um item ambíguo — e ver como cada decisão muda os resultados."),
+
+    # --- Como usar
+    h5(class = "mt-4", "Como usar o laboratório"),
+    tags$ul(
+      tags$li(HTML("<strong>Missões guiadas:</strong> no alto da página. São 17 missões, do básico ao desafio, que guiam você pelas abas. Cada uma diz o que fazer, confere se você fez e termina com uma pergunta para refletir. O seu progresso fica salvo neste navegador.")),
+      tags$li(HTML("<strong>Barra lateral:</strong> os controles da análise (número de fatores, rotação, tamanho da amostra…). Mexa à vontade: tudo é recalculado na hora, e nada se estraga.")),
+      tags$li(HTML("<strong>Ponto de partida:</strong> comece pela missão 1 e siga a ordem."))),
+    tags$button(
+      type = "button", class = "btn btn-primary mt-1 mb-4",
+      onclick = paste0(
+        "Shiny.setInputValue('missao_escolhida', 1, {priority: 'event'});",
+        "bootstrap.Collapse.getOrCreateInstance(document.getElementById('corpo_missoes')).show();",
+        "window.scrollTo({top: 0, behavior: 'smooth'});"),
+      "Começar pela missão 1 →")
+  )
+)
+
+# --- Aba 1: os itens (incluir/excluir e montar as escalas)
 aba_itens <- nav_panel(
-  "0. Itens", value = "itens",
+  "1. Itens", value = "itens",
+  div(class = "small p-2 mb-2 rounded", style = "background:#fdf5e6;border-left:4px solid #c98500;",
+      strong("Primeira vez aqui? "),
+      "Por enquanto, só leia os itens. As colunas com números (KMO, h², cargas, alfa…) vão fazer sentido ao longo das missões — ",
+      "você volta a esta aba no fim, para tomar decisões sobre os itens."),
   p("Antes de analisar, conheça os ", strong("25 itens"), " do questionário. Cada pessoa disse o quanto cada frase a descreve, ",
     "de 1 (discordo totalmente) a 6 (concordo totalmente). Os itens marcados com ", strong("(−)"), " são ", strong("invertidos"),
     ": concordar com eles indica ", em("menos"), " do traço."),
   p(class = "small text-muted",
     "Nesta aba você pode ", strong("tirar itens da análise"), " (desmarcando a caixinha) e decidir de ", strong("qual escala"),
-    " cada item faz parte (para o alfa e o ômega da aba 6). Volte aqui quando quiser: todas as abas passam a usar só os itens marcados."),
+    " cada item faz parte (para o alfa e o ômega da aba 7). Volte aqui quando quiser: todas as abas passam a usar só os itens marcados."),
   uiOutput("contexto_itens"),
   div(class = "d-flex flex-wrap align-items-center gap-2 mb-2",
       uiOutput("resumo_itens", inline = TRUE),
@@ -126,14 +270,14 @@ aba_itens <- nav_panel(
                              class = "btn-sm btn-outline-secondary ms-auto")),
     p(class = "small text-muted",
       "Cada vez que você tira ou recoloca itens, o app registra como ficaram os principais resultados, com a configuração usada no momento. ",
-      "Para comparar em detalhe duas situações, use “Guardar esta solução para comparar” na aba 4."),
+      "Para comparar em detalhe duas situações, use “Guardar esta solução para comparar” na aba 5."),
     uiOutput("diario")
   )
 )
 
-# --- Aba 1: correlações
+# --- Aba 2: correlações
 aba_correlacoes <- nav_panel(
-  "1. Correlações", value = "correlacoes",
+  "2. Correlações", value = "correlacoes",
   p("Cada quadradinho mostra a correlação entre dois itens. ",
     strong("Vermelho"), " = correlação positiva (quem concorda com um tende a concordar com o outro); ",
     strong("azul"), " = correlação negativa (quem concorda com um tende a discordar do outro); ",
@@ -147,9 +291,9 @@ aba_correlacoes <- nav_panel(
   plotOutput("mapa_cor", height = "720px")
 )
 
-# --- Aba 2: KMO e Bartlett
+# --- Aba 3: KMO e Bartlett
 aba_kmo <- nav_panel(
-  "2. KMO e Bartlett", value = "kmo",
+  "3. KMO e Bartlett", value = "kmo",
   p("Antes de procurar fatores, precisamos saber se os dados ", em("servem"),
     " para isso. Dois testes ajudam:"),
   uiOutput("aviso_suavizada2"),
@@ -167,9 +311,9 @@ aba_kmo <- nav_panel(
   )
 )
 
-# --- Aba 3: scree plot e análise paralela
+# --- Aba 4: scree plot e análise paralela
 aba_scree <- nav_panel(
-  "3. Quantos fatores?", value = "scree",
+  "4. Quantos fatores?", value = "scree",
   p("O ", strong("scree plot"), " mostra quanto cada fator explica (o autovalor). A ",
     strong("análise paralela"), " compara isso com o que dados ", em("totalmente aleatórios"),
     " do mesmo tamanho explicariam."),
@@ -230,20 +374,20 @@ aba_scree <- nav_panel(
           tags$li(strong("Análise paralela e scree plot"), " (acima): quantos fatores explicam mais do que o acaso."),
           tags$li(strong("Índices de ajuste e parcimônia"), " (estes gráficos): o ajuste é aceitável? ",
                   "A partir de que ponto cada fator novo quase não ajuda mais? Algum modelo tem caso de Heywood?"),
-          tags$li(strong("As cargas de cada item"), " (aba 4): cada fator tem pelo menos 3 itens com cargas fortes? ",
+          tags$li(strong("As cargas de cada item"), " (aba 5): cada fator tem pelo menos 3 itens com cargas fortes? ",
                   "Há muitas cargas cruzadas ou itens sem fator? Um fator com um ou dois itens só costuma ser sinal de fatores demais."),
           tags$li(HTML("<strong>A teoria</strong>: os fatores fazem sentido? Dá para dar um nome a cada um? "),
                   "Eles correspondem ao que o instrumento foi feito para medir — ou a algo que a literatura conhece?")),
         p(class = "small mb-0",
-          "Na prática, testamos os números de fatores candidatos (por exemplo, 5 e 6), olhamos as cargas de cada solução na aba 4 ",
+          "Na prática, testamos os números de fatores candidatos (por exemplo, 5 e 6), olhamos as cargas de cada solução na aba 5 ",
           "e escolhemos a que é ao mesmo tempo adequada aos dados ", em("e"), " interpretável. ",
-          "O botão “Guardar esta solução para comparar”, na aba 4, ajuda nessa comparação."))
+          "O botão “Guardar esta solução para comparar”, na aba 5, ajuda nessa comparação."))
   )
 )
 
-# --- Aba 4: cargas fatoriais e índices de ajuste
+# --- Aba 5: cargas fatoriais e índices de ajuste
 aba_cargas <- nav_panel(
-  "4. Cargas fatoriais", value = "cargas",
+  "5. Cargas fatoriais", value = "cargas",
   p("Agora o app procura os fatores, usando o número de fatores, o método de extração e a rotação escolhidos na barra lateral. ",
     "Primeiro, veja se o modelo se ajusta aos dados; depois, veja quais itens formam cada fator."),
   uiOutput("aviso_correlacao3"),
@@ -329,9 +473,9 @@ aba_cargas <- nav_panel(
   )
 )
 
-# --- Aba 5: rotação
+# --- Aba 6: rotação
 aba_rotacao <- nav_panel(
-  "5. Rotação", value = "rotacao",
+  "6. Rotação", value = "rotacao",
   p("Imagine os itens como pontos num mapa. Os fatores são os eixos desse mapa. ",
     strong("Rotacionar"), " é girar os eixos para que cada um passe o mais perto possível de um grupo de pontos. ",
     "Os pontos não mudam de lugar entre si: só muda o ponto de vista, e a solução fica mais fácil de interpretar."),
@@ -367,9 +511,9 @@ aba_rotacao <- nav_panel(
   )
 )
 
-# --- Aba 6: correlação entre fatores e alfa
+# --- Aba 7: correlação entre fatores e alfa
 aba_fatores <- nav_panel(
-  "6. Fatores e alfa", value = "fatores",
+  "7. Fatores e alfa", value = "fatores",
   card(
     card_header("Os fatores se correlacionam?"),
     uiOutput("conteudo_phi")
@@ -391,7 +535,7 @@ aba_fatores <- nav_panel(
 
 abas <- navset_card_tab(
   id = "aba",
-  aba_itens, aba_correlacoes, aba_kmo, aba_scree, aba_cargas, aba_rotacao, aba_fatores
+  aba_inicio, aba_itens, aba_correlacoes, aba_kmo, aba_scree, aba_cargas, aba_rotacao, aba_fatores
 )
 
 # Painel das missões guiadas (próximas etapas).
@@ -592,7 +736,7 @@ server <- function(input, output, session) {
     ))
   })
 
-  # --- Os itens que entram na análise (aba 0) ---------------------------
+  # --- Os itens que entram na análise (aba 1) ---------------------------
   MIN_ITENS <- 6
   excluidos <- reactiveVal(character(0))
   incluidos <- reactive(setdiff(itens$codigo, excluidos()))
@@ -616,7 +760,7 @@ server <- function(input, output, session) {
   # Espera o aluno soltar o controle do nº de fatores (0,3 s).
   nfat <- debounce(reactive(input$nfatores), 300)
 
-  # Sempre calculamos a solução SEM rotação (para a aba 5 comparar) e a
+  # Sempre calculamos a solução SEM rotação (para a aba 6 comparar) e a
   # solução COM a rotação escolhida. Se a rotação for "nenhuma", são iguais.
   afe_sem <- reactive(rodar_afe(R_analise(), nrow(amostra()), nfat(), input$extracao, "none"))
   afe_com <- reactive({
@@ -631,7 +775,7 @@ server <- function(input, output, session) {
   })
 
   # =====================================================================
-  # Aba 1
+  # Aba 2
   # =====================================================================
   aviso_correlacao <- function() {
     cr <- correlacao()
@@ -652,7 +796,7 @@ server <- function(input, output, session) {
   }, res = 96)
 
   # =====================================================================
-  # Aba 2
+  # Aba 3
   # =====================================================================
   output$caixa_kmo <- renderUI({
     k <- kmo()
@@ -685,7 +829,7 @@ server <- function(input, output, session) {
   output$tabela_msa <- renderUI(tabela_msa(kmo()))
 
   # =====================================================================
-  # Aba 3
+  # Aba 4
   # =====================================================================
   output$scree <- renderPlot(
     grafico_scree(paralela(), mostrar_kaiser = isTRUE(input$mostrar_kaiser)), res = 96)
@@ -726,7 +870,7 @@ server <- function(input, output, session) {
     grafico_ajuste_k(ajuste_k(), nfat(), paralela()$sugeridos), res = 96)
 
   # =====================================================================
-  # Aba 4
+  # Aba 5
   # =====================================================================
   nomes_extracao <- c(minres = "resíduos mínimos", ml = "máxima verossimilhança", pa = "eixos principais")
 
@@ -897,7 +1041,7 @@ server <- function(input, output, session) {
   })
 
   # =====================================================================
-  # Aba 5
+  # Aba 6
   # =====================================================================
   # Quando muda o nº de fatores, atualiza as opções dos eixos.
   observeEvent(nfat(), {
@@ -949,8 +1093,8 @@ server <- function(input, output, session) {
     textos <- list(
       none = "Nenhuma rotação escolhida: os dois gráficos são iguais. Escolha varimax, oblimin ou promax na barra lateral e compare.",
       varimax = "A varimax é uma rotação ortogonal: os eixos giram juntos, sempre em ângulo reto. Por isso os fatores continuam sem correlação entre si.",
-      oblimin = "A oblimin é uma rotação oblíqua: cada eixo pode girar por conta própria, sem precisar ficar em ângulo reto. Por isso os fatores podem se correlacionar (veja a aba 6).",
-      promax = "A promax é uma rotação oblíqua: cada eixo pode girar por conta própria, sem precisar ficar em ângulo reto. Por isso os fatores podem se correlacionar (veja a aba 6)."
+      oblimin = "A oblimin é uma rotação oblíqua: cada eixo pode girar por conta própria, sem precisar ficar em ângulo reto. Por isso os fatores podem se correlacionar (veja a aba 7).",
+      promax = "A promax é uma rotação oblíqua: cada eixo pode girar por conta própria, sem precisar ficar em ângulo reto. Por isso os fatores podem se correlacionar (veja a aba 7)."
     )
     tagList(
       p(class = "small", HTML(paste0(
@@ -962,7 +1106,7 @@ server <- function(input, output, session) {
   })
 
   # =====================================================================
-  # Aba 6
+  # Aba 7
   # =====================================================================
   output$conteudo_phi <- renderUI({
     a <- afe()
@@ -1003,9 +1147,9 @@ server <- function(input, output, session) {
                                 if (length(fora_auto) == 1) "1 item ficou" else paste(length(fora_auto), "itens ficaram"))),
         lapply(fora_auto, chip_codigo)),
       if (length(al$fora_manual) > 0) p(class = "small",
-        selo("atencao", "Você deixou fora das escalas (aba 0): "), lapply(al$fora_manual, chip_codigo)),
+        selo("atencao", "Você deixou fora das escalas (aba 1): "), lapply(al$fora_manual, chip_codigo)),
       if (length(excl) > 0) p(class = "small text-muted",
-        "Fora da análise (excluídos na aba 0): ", lapply(excl, chip_codigo)))
+        "Fora da análise (excluídos na aba 1): ", lapply(excl, chip_codigo)))
   })
 
   output$nota_alfa <- renderUI({
@@ -1028,7 +1172,7 @@ server <- function(input, output, session) {
   })
 
   # =====================================================================
-  # Aba 0 — os itens
+  # Aba 1 — os itens
   # =====================================================================
   escalas_manuais <- reactiveVal(stats::setNames(integer(0), character(0)))
   redesenhar_itens <- reactiveVal(0)   # força redesenhar a tabela (ex.: clique recusado)
@@ -1086,7 +1230,7 @@ server <- function(input, output, session) {
   observeEvent(assinatura_solucao(), {
     if (length(escalas_manuais()) > 0) {
       escalas_manuais(stats::setNames(integer(0), character(0)))
-      showNotification("A solução mudou, então as escolhas manuais de escala (aba 0) foram desfeitas: os fatores podem ter mudado de número e de ordem.",
+      showNotification("A solução mudou, então as escolhas manuais de escala (aba 1) foram desfeitas: os fatores podem ter mudado de número e de ordem.",
                        type = "warning", duration = 8)
     }
   }, ignoreInit = TRUE)
@@ -1099,7 +1243,7 @@ server <- function(input, output, session) {
       sprintf("%s, extração %s, %s, ponto de corte %s. ",
               if (nfat() == 1) "1 fator" else paste(nfat(), "fatores"), input$extracao,
               NOMES_ROTACAO[[input$rotacao]], fmt(input$corte, 2)),
-      "Escolha o número de fatores e a rotação (barra lateral e abas 3 e 4) antes de decidir sobre os itens.")
+      "Escolha o número de fatores e a rotação (barra lateral e abas 4 e 5) antes de decidir sobre os itens.")
   })
 
   output$resumo_itens <- renderUI({
@@ -1187,7 +1331,7 @@ server <- function(input, output, session) {
   missao_atual <- reactiveVal(1L)
   concluidas <- reactiveVal(integer(0))
 
-  # O que as missões podem conferir: os controles + o estado da aba 0
+  # O que as missões podem conferir: os controles + o estado da aba 1
   estado_missoes <- reactive(c(
     reactiveValuesToList(input),
     list(excluidos = excluidos(), n_excluidos = length(excluidos()),
@@ -1278,7 +1422,7 @@ server <- function(input, output, session) {
     }
     aviso_itens <- if (k <= 14 && length(excluidos()) > 0) div(
       class = "small mt-2", selo("atencao", sprintf(
-        "Você excluiu itens na aba 0 (%s). As missões 1 a 14 foram pensadas com os 25 itens: os resultados podem ficar diferentes dos comentários.",
+        "Você excluiu itens na aba 1 (%s). As missões 1 a 14 foram pensadas com os 25 itens: os resultados podem ficar diferentes dos comentários.",
         paste(excluidos(), collapse = ", "))))
     tagList(lista_conferencia(m, ok), botao, aviso_itens)
   })

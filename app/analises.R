@@ -357,7 +357,7 @@ interpretar_ajuste <- function(afe, sugeridos) {
     nivel <- "ruim"
     titulo <- "Os dois índices indicam ajuste fraco"
     texto <- if (k < sugeridos) sprintf(
-      "Provavelmente faltam fatores: você está usando %s, e a análise paralela (aba 3) sugere %s. Tente aumentar o número de fatores na barra lateral e veja os índices melhorarem.",
+      "Provavelmente faltam fatores: você está usando %s, e a análise paralela (aba 4) sugere %s. Tente aumentar o número de fatores na barra lateral e veja os índices melhorarem.",
       fator_s(k), fator_s(sugeridos))
     else sprintf(
       "Você já está usando %s (a análise paralela sugere %s). Mais fatores podem melhorar os índices, mas também podem criar fatores sem sentido. Com escalas de concordância (Likert) e amostras grandes, esses índices costumam ser exigentes: use a tabela de cargas para decidir se a solução faz sentido.",
@@ -474,7 +474,7 @@ alfa_se_excluido <- function(R, L, alfas) {
   do.call(rbind, linhas)
 }
 
-# --- Diagnóstico de cada item (aba 0) -----------------------------------
+# --- Diagnóstico de cada item (aba 1) -----------------------------------
 # Junta, para cada item incluído, os sinais que merecem investigação.
 # São SINAIS PARA INVESTIGAR, não ordens de exclusão.
 diagnosticar_itens <- function(R, kmo, afe, alfas, corte) {

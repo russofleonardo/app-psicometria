@@ -11,13 +11,14 @@
 # =====================================================================
 
 NOMES_ABAS <- c(
-  itens       = "0. Itens",
-  correlacoes = "1. Correlações",
-  kmo         = "2. KMO e Bartlett",
-  scree       = "3. Quantos fatores?",
-  cargas      = "4. Cargas fatoriais",
-  rotacao     = "5. Rotação",
-  fatores     = "6. Fatores e alfa"
+  inicio      = "0. Comece aqui",
+  itens       = "1. Itens",
+  correlacoes = "2. Correlações",
+  kmo         = "3. KMO e Bartlett",
+  scree       = "4. Quantos fatores?",
+  cargas      = "5. Cargas fatoriais",
+  rotacao     = "6. Rotação",
+  fatores     = "7. Fatores e alfa"
 )
 
 NIVEIS <- c("Básico", "Intermediário", "Avançado", "Desafio")
@@ -53,7 +54,7 @@ MISSOES <- list(
     objetivo = "Descobrir, só olhando o mapa de calor, se os itens formam grupos — a ideia que está por trás de toda a análise fatorial.",
     passos = c(
       "Na barra lateral, leve o “Tamanho da amostra” até o máximo, para usar todas as pessoas.",
-      "Abra a aba 1 e observe o mapa de calor: os itens estão agrupados por domínio (A, C, E, N, O).",
+      "Abra a aba 2 e observe o mapa de calor: os itens estão agrupados por domínio (A, C, E, N, O).",
       "Procure os “blocos” de cor forte ao longo da diagonal. Quantos você encontra? Qual é o bloco mais forte?"
     ),
     condicoes = list(cond_aba("correlacoes"), cond_amostra_completa()),
@@ -66,7 +67,7 @@ MISSOES <- list(
     nivel = "Básico", aba = "correlacoes",
     objetivo = "Entender como os itens invertidos aparecem nos números, e por que eles não atrapalham a análise.",
     passos = c(
-      "Na aba 1, ligue a opção “Mostrar os valores dentro dos quadradinhos”.",
+      "Na aba 2, ligue a opção “Mostrar os valores dentro dos quadradinhos”.",
       "Ache a correlação entre E1 (“Fala pouco”) e E2 (“Tem dificuldade de se aproximar”). Ela é positiva ou negativa?",
       "Agora ache a correlação entre E1 e E4 (“Faz amigos com facilidade”). E esta?"
     ),
@@ -84,7 +85,7 @@ MISSOES <- list(
     objetivo = "Usar o KMO e o teste de Bartlett para decidir se vale a pena procurar fatores nestes dados.",
     passos = c(
       "Mantenha a amostra completa (tamanho da amostra no máximo).",
-      "Na aba 2, leia o KMO geral e a sua classificação.",
+      "Na aba 3, leia o KMO geral e a sua classificação.",
       "Leia o resultado do teste de Bartlett.",
       "Na tabela de baixo, encontre o item com o MENOR KMO."
     ),
@@ -98,7 +99,7 @@ MISSOES <- list(
     nivel = "Básico", aba = "kmo",
     objetivo = "Ver como os resultados ficam instáveis quando a amostra é pequena.",
     passos = c(
-      "Na aba 2, anote o KMO geral com a amostra completa.",
+      "Na aba 3, anote o KMO geral com a amostra completa.",
       "Reduza o “Tamanho da amostra” para 100 pessoas ou menos.",
       "Clique em “Sortear outra amostra” algumas vezes e observe o KMO e a tabela dos itens mudando."
     ),
@@ -118,7 +119,7 @@ MISSOES <- list(
     objetivo = "Decidir o número de fatores com o scree plot e a análise paralela — antes de olhar a resposta pronta.",
     passos = c(
       "Volte a amostra para o máximo (todas as pessoas).",
-      "Na aba 3, conte quantos pontos azuis (dados reais) ficam ACIMA dos laranjas (acaso), da esquerda para a direita.",
+      "Na aba 4, conte quantos pontos azuis (dados reais) ficam ACIMA dos laranjas (acaso), da esquerda para a direita.",
       "Só depois abra “Ver a sugestão da análise paralela” e compare com a sua contagem.",
       "Ligue “Mostrar também os autovalores usados no critério de Kaiser” e compare a linha cinza com a azul."
     ),
@@ -133,7 +134,7 @@ MISSOES <- list(
     objetivo = "Ver o que acontece quando forçamos todos os itens a caber em um único fator.",
     passos = c(
       "Na barra lateral, escolha 1 fator e rotação “Nenhuma”.",
-      "Na aba 4, leia o TLI, o RMSEA e o comentário “O que os índices dizem juntos”.",
+      "Na aba 5, leia o TLI, o RMSEA e o comentário “O que os índices dizem juntos”.",
       "Na tabela, veja quais itens têm carga forte nesse fator único — e quais ficaram de fora.",
       "Abra a sub-aba “Resíduos”: que blocos de itens o fator único deixou sem explicar?"
     ),
@@ -147,10 +148,10 @@ MISSOES <- list(
     nivel = "Intermediário", aba = "cargas",
     objetivo = "Acompanhar como o ajuste muda a cada fator acrescentado.",
     passos = c(
-      "Na aba 4, comece com 1 fator e vá subindo, um por um, até 5, observando o TLI, o RMSEA e os resíduos.",
-      "Depois, na aba 3, veja o gráfico “Quanto o ajuste melhora a cada fator?”, que resume os modelos de 1 a 10 fatores.",
+      "Na aba 5, comece com 1 fator e vá subindo, um por um, até 5, observando o TLI, o RMSEA e os resíduos.",
+      "Depois, na aba 4, veja o gráfico “Quanto o ajuste melhora a cada fator?”, que resume os modelos de 1 a 10 fatores.",
       "Em qual passo o ajuste melhorou mais? E menos?",
-      "Volte para a aba 4 com 5 fatores."
+      "Volte para a aba 5 com 5 fatores."
     ),
     condicoes = list(cond_aba("cargas"), cond_fatores(5)),
     reflexao = "O TLI sempre melhora quando acrescentamos fatores. Então por que não usar logo 10 fatores?",
@@ -163,7 +164,7 @@ MISSOES <- list(
     objetivo = "Interpretar os fatores a partir dos itens que têm carga forte em cada um.",
     passos = c(
       "Escolha 5 fatores e rotação varimax.",
-      "Na aba 4, deixe ligada a opção “Agrupar os itens pelo fator em que têm a maior carga”.",
+      "Na aba 5, deixe ligada a opção “Agrupar os itens pelo fator em que têm a maior carga”.",
       "Para cada fator (F1 a F5), leia os itens do seu grupo e dê um nome a ele.",
       "Procure os itens marcados com “carga cruzada”."
     ),
@@ -180,7 +181,7 @@ MISSOES <- list(
     nivel = "Intermediário", aba = "cargas",
     objetivo = "Entender como o ponto de corte muda a leitura da tabela de cargas.",
     passos = c(
-      "Na aba 4, com 5 fatores, observe quantos itens têm a marca “sem fator” com o corte em 0,30.",
+      "Na aba 5, com 5 fatores, observe quantos itens têm a marca “sem fator” com o corte em 0,30.",
       "Suba o “Ponto de corte das cargas” para 0,50 ou mais.",
       "Conte de novo os itens “sem fator” e as cargas cruzadas."
     ),
@@ -198,7 +199,7 @@ MISSOES <- list(
     nivel = "Avançado", aba = "rotacao",
     objetivo = "Ver o que a rotação faz com as cargas — e o que ela NÃO muda.",
     passos = c(
-      "Com 5 fatores, escolha rotação “Nenhuma” e abra a aba 5. Observe os dois gráficos (são iguais).",
+      "Com 5 fatores, escolha rotação “Nenhuma” e abra a aba 6. Observe os dois gráficos (são iguais).",
       "Agora escolha a rotação varimax e compare “antes” e “depois”.",
       "Na tabela de baixo, compare as cargas cruzadas antes e depois, e a variância explicada total.",
       "Se quiser, troque os fatores dos eixos (ex.: F3 × F4) e veja outros grupos de itens."
@@ -213,10 +214,10 @@ MISSOES <- list(
     nivel = "Avançado", aba = "fatores",
     objetivo = "Descobrir se os fatores se correlacionam e escolher o tipo de rotação.",
     passos = c(
-      "Com 5 fatores e rotação varimax, abra a aba 6 e leia o que aparece sobre a correlação entre fatores.",
+      "Com 5 fatores e rotação varimax, abra a aba 7 e leia o que aparece sobre a correlação entre fatores.",
       "Troque para a rotação oblimin.",
       "Na tabela de correlações, encontre o par de fatores com a maior correlação (em módulo). Quais traços são esses?",
-      "Na aba 4, alterne entre “Matriz padrão” e “Matriz de estrutura”. Onde aparecem as diferenças?"
+      "Na aba 5, alterne entre “Matriz padrão” e “Matriz de estrutura”. Onde aparecem as diferenças?"
     ),
     condicoes = list(cond_aba("fatores"), cond_fatores(5), cond_rotacao("oblimin")),
     reflexao = "Faz sentido supor que traços de personalidade são totalmente independentes uns dos outros? Que rotação você escolheria e por quê?",
@@ -228,7 +229,7 @@ MISSOES <- list(
     nivel = "Avançado", aba = "fatores",
     objetivo = "Avaliar a consistência interna (alfa) de cada fator.",
     passos = c(
-      "Com 5 fatores, rotação oblimin e ponto de corte 0,30, abra a aba 6.",
+      "Com 5 fatores, rotação oblimin e ponto de corte 0,30, abra a aba 7.",
       "Leia o alfa, o ômega e a classificação de cada fator.",
       "Qual fator tem o alfa mais baixo? Quais itens dele aparecem marcados com “(inv.)”?",
       "Compare o alfa com o ômega de cada fator: eles ficam parecidos ou diferentes?"
@@ -247,10 +248,10 @@ MISSOES <- list(
     objetivo = "Comparar os dois tipos de correlação e entender quando usar cada um.",
     passos = c(
       "Leve o tamanho da amostra ao máximo (a policórica da amostra completa já vem calculada e aparece na hora).",
-      "Com 5 fatores e correlação de Pearson, clique em “Guardar esta solução para comparar” na aba 4.",
+      "Com 5 fatores e correlação de Pearson, clique em “Guardar esta solução para comparar” na aba 5.",
       "Troque para correlação policórica.",
       "Abra a sub-aba “Comparar”: as comunalidades (h²) ficaram maiores ou menores? E os índices de ajuste? Os fatores continuam os mesmos?",
-      "Se quiser, veja também o alfa na aba 6 — com policórica ele vira o “alfa ordinal”."
+      "Se quiser, veja também o alfa na aba 7 — com policórica ele vira o “alfa ordinal”."
     ),
     condicoes = list(
       cond_aba("cargas"), cond_fatores(5), cond_amostra_completa(),
@@ -267,7 +268,7 @@ MISSOES <- list(
     objetivo = "Reconhecer os sinais de excesso de fatores e, no fim, escolher e defender o seu modelo.",
     passos = c(
       "Use a amostra completa e escolha 10 fatores.",
-      "Na aba 4, leia os índices de ajuste e o comentário. Algum aviso apareceu?",
+      "Na aba 5, leia os índices de ajuste e o comentário. Algum aviso apareceu?",
       "Na tabela, procure fatores com apenas um item de carga forte.",
       "Por fim, volte ao número de fatores que você acha melhor e escolha extração, rotação e tipo de correlação."
     ),
@@ -277,7 +278,7 @@ MISSOES <- list(
   )
 )
 
-# --- Missões sobre decisões com os itens (aba 0) ------------------------
+# --- Missões sobre decisões com os itens (aba 1) ------------------------
 # ATENÇÃO: missões novas entram sempre no FIM da lista (o progresso salvo no
 # navegador usa o número da missão).
 MISSOES <- c(MISSOES, list(
@@ -288,15 +289,15 @@ MISSOES <- c(MISSOES, list(
     objetivo = "Decidir se um item deve sair da análise — usando os números E o conteúdo do item — e ver todas as consequências.",
     passos = c(
       "Use a amostra completa, 5 fatores e rotação oblimin.",
-      "Na aba 0, veja os “sinais para investigar”. Qual item tem a menor comunalidade (h²)? Leia o texto dele.",
-      "Na aba 4, clique em “Guardar esta solução para comparar”.",
-      "Volte à aba 0 e desmarque esse item.",
-      "Veja o “Diário de decisões” (aba 0) e a sub-aba “Comparar” (aba 4): o que melhorou? O que piorou? Algum OUTRO item mudou de fator?"
+      "Na aba 1, veja os “sinais para investigar”. Qual item tem a menor comunalidade (h²)? Leia o texto dele.",
+      "Na aba 5, clique em “Guardar esta solução para comparar”.",
+      "Volte à aba 1 e desmarque esse item.",
+      "Veja o “Diário de decisões” (aba 1) e a sub-aba “Comparar” (aba 5): o que melhorou? O que piorou? Algum OUTRO item mudou de fator?"
     ),
     condicoes = list(
       cond_fatores(5), cond_rotacao("oblimin"), cond_amostra_completa(),
-      cond("Guardar uma solução para comparar (aba 4)", function(i) isTRUE(i$tem_guardada)),
-      cond("Excluir exatamente 1 item (aba 0)", function(i) isTRUE(i$n_excluidos == 1))
+      cond("Guardar uma solução para comparar (aba 5)", function(i) isTRUE(i$tem_guardada)),
+      cond("Excluir exatamente 1 item (aba 1)", function(i) isTRUE(i$n_excluidos == 1))
     ),
     reflexao = "O ajuste e o alfa da escala do item melhoraram um pouco. Isso basta para justificar a exclusão? O que se perde?",
     comentario = "Não basta. Uma exclusão se justifica quando a estatística (comunalidade baixa, nenhuma carga forte, KMO baixo) E o conteúdo apontam na mesma direção — por exemplo, um item ambíguo ou que mede outra coisa. Nestes dados, o item mais fraco costuma ser A1 (“Indiferente aos sentimentos alheios”): sem ele, o TLI e o alfa da Amabilidade sobem um pouco. Mas repare: outro item pode mudar de fator (E3, por exemplo, pode passar para a Amabilidade), e o alfa de outra escala pode cair. Além disso, cada item retirado estreita o que a escala mede. Boas práticas: uma decisão por vez, sempre justificada e relatada; e conferir se ela se sustenta em outra amostra (sorteie outra!) — senão, você pode estar só “decorando” esta amostra."
@@ -307,13 +308,13 @@ MISSOES <- c(MISSOES, list(
     nivel = "Desafio", aba = "fatores",
     objetivo = "Decidir de qual escala um item com carga cruzada deve fazer parte, e ver como isso muda o alfa e o ômega.",
     passos = c(
-      "Com 5 fatores e rotação oblimin, procure na aba 0 um item com “carga cruzada” (ou cuja maior carga está num fator de outro domínio).",
+      "Com 5 fatores e rotação oblimin, procure na aba 1 um item com “carga cruzada” (ou cuja maior carga está num fator de outro domínio).",
       "Na coluna “Escala (para o alfa)”, mude esse item para outra escala — ou para “Fora das escalas”.",
-      "Veja na aba 6 como mudaram o alfa e o ômega das escalas envolvidas. O item aparece marcado como “manual”."
+      "Veja na aba 7 como mudaram o alfa e o ômega das escalas envolvidas. O item aparece marcado como “manual”."
     ),
     condicoes = list(
       cond_aba("fatores"), cond_fatores(5), cond_rotacao("oblimin"),
-      cond("Mudar a escala de pelo menos 1 item (aba 0)", function(i) isTRUE(i$n_manuais >= 1))
+      cond("Mudar a escala de pelo menos 1 item (aba 1)", function(i) isTRUE(i$n_manuais >= 1))
     ),
     reflexao = "Quando a carga de um item aponta para um fator, mas o conteúdo (e a teoria) aponta para outro, a qual escala ele deve pertencer?",
     comentario = "Não há regra automática. O ponto de partida é a maior carga, mas a decisão final também considera o conteúdo do item e o objetivo do instrumento. Se as duas cargas são parecidas, o item mede um pouco de cada coisa: muitas vezes a melhor escolha é deixá-lo fora das escalas (e relatar isso). Repare que mudar um item de escala altera o alfa e o ômega das duas escalas — mas escolher a composição só para maximizar o alfa é um erro: a escala deve medir o construto, não apenas ter itens parecidos entre si. Atenção: as escolhas manuais são desfeitas quando você muda a solução (número de fatores, rotação, itens…), porque os fatores podem mudar de número e de ordem."
@@ -324,17 +325,17 @@ MISSOES <- c(MISSOES, list(
     nivel = "Desafio", aba = "itens",
     objetivo = "Ver o que acontece quando se excluem todos os itens invertidos — e entender por que isso é uma má ideia, mesmo quando os números melhoram.",
     passos = c(
-      "Com 5 fatores e rotação oblimin, guarde a solução (aba 4, “Guardar esta solução para comparar”).",
-      "Na aba 0, desmarque os 7 itens invertidos — os marcados com (−): A1, C4, C5, E1, E2, O2 e O5.",
-      "Compare: o TLI e o RMSEA melhoraram? E a tabela de cargas (aba 4) e a coluna “Parece medir” (aba 6) — os 5 domínios continuam lá?"
+      "Com 5 fatores e rotação oblimin, guarde a solução (aba 5, “Guardar esta solução para comparar”).",
+      "Na aba 1, desmarque os 7 itens invertidos — os marcados com (−): A1, C4, C5, E1, E2, O2 e O5.",
+      "Compare: o TLI e o RMSEA melhoraram? E a tabela de cargas (aba 5) e a coluna “Parece medir” (aba 7) — os 5 domínios continuam lá?"
     ),
     condicoes = list(
       cond_fatores(5), cond_rotacao("oblimin"),
-      cond("Guardar uma solução para comparar (aba 4)", function(i) isTRUE(i$tem_guardada)),
-      cond("Excluir os 7 itens invertidos (aba 0)", function(i) isTRUE(all(INVERTIDOS %in% i$excluidos)))
+      cond("Guardar uma solução para comparar (aba 5)", function(i) isTRUE(i$tem_guardada)),
+      cond("Excluir os 7 itens invertidos (aba 1)", function(i) isTRUE(all(INVERTIDOS %in% i$excluidos)))
     ),
     reflexao = "Se alguns números melhoraram, por que não é recomendado tirar os itens invertidos?",
-    comentario = "Itens invertidos costumam ter cargas mais fracas por um “efeito de método”: algumas pessoas tendem a concordar com tudo (aquiescência), leem com pressa ou se confundem com a negação. Tirá-los pode melhorar alguns índices — nestes dados, o TLI provavelmente sobe —, mas a estrutura se desfaz: a Extroversão, que perde dois de seus itens, tende a desaparecer, e outro fator surge no lugar. Mesmo quando a estrutura sobrevive, uma escala só com itens “no mesmo sentido” fica vulnerável a quem concorda com tudo, cujos escores ficam inflados. Por isso, a boa prática é manter itens nos dois sentidos e, se preciso, tratar o efeito de método em modelos confirmatórios. Lição geral: um índice melhor não significa um instrumento melhor. Para continuar, recoloque os itens (botão “Recolocar todos os itens”, na aba 0)."
+    comentario = "Itens invertidos costumam ter cargas mais fracas por um “efeito de método”: algumas pessoas tendem a concordar com tudo (aquiescência), leem com pressa ou se confundem com a negação. Tirá-los pode melhorar alguns índices — nestes dados, o TLI provavelmente sobe —, mas a estrutura se desfaz: a Extroversão, que perde dois de seus itens, tende a desaparecer, e outro fator surge no lugar. Mesmo quando a estrutura sobrevive, uma escala só com itens “no mesmo sentido” fica vulnerável a quem concorda com tudo, cujos escores ficam inflados. Por isso, a boa prática é manter itens nos dois sentidos e, se preciso, tratar o efeito de método em modelos confirmatórios. Lição geral: um índice melhor não significa um instrumento melhor. Para continuar, recoloque os itens (botão “Recolocar todos os itens”, na aba 1)."
   )
 ))
 

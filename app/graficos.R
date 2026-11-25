@@ -395,7 +395,7 @@ chip_codigo <- function(codigo, invertido = FALSE) {
 
 estilo_num <- "font-variant-numeric:tabular-nums;white-space:nowrap;"
 
-# --- Tabela de cargas (aba 4) -----------------------------------------
+# --- Tabela de cargas (aba 5) -----------------------------------------
 # matriz = "padrao" (as cargas) ou "estrutura" (correlação item–fator,
 # só faz diferença nas rotações oblíquas). A situação dos itens e o
 # agrupamento vêm sempre da matriz padrão.
@@ -466,7 +466,7 @@ tabela_cargas <- function(afe, corte, agrupar = TRUE, matriz = "padrao") {
   )
 }
 
-# --- Gráfico de cargas: um fator contra outro (aba 5) -------------------
+# --- Gráfico de cargas: um fator contra outro (aba 6) -------------------
 grafico_cargas <- function(L, x = 1, y = 2, corte = 0.3) {
   preparar_grafico(mar = c(4.2, 4.2, 0.8, 0.8))
   graphics::plot(NA, xlim = c(-1, 1), ylim = c(-1, 1), asp = 1, axes = FALSE,
@@ -485,7 +485,7 @@ grafico_cargas <- function(L, x = 1, y = 2, corte = 0.3) {
   graphics::text(L[, x], L[, y], rownames(L), pos = 3, offset = 0.5, cex = 0.72, col = TINTA_2)
 }
 
-# --- O que a rotação mudou (aba 5) --------------------------------------
+# --- O que a rotação mudou (aba 6) --------------------------------------
 tabela_comparacao_rotacao <- function(sem, com, corte) {
   niveis <- c("ok", "cruzada", "sem_fator")
   cs <- table(factor(classificar_itens(sem$L, corte)$situacao, niveis))
@@ -516,7 +516,7 @@ tabela_comparacao_rotacao <- function(sem, com, corte) {
   )
 }
 
-# --- Correlação entre fatores (aba 6) -----------------------------------
+# --- Correlação entre fatores (aba 7) -----------------------------------
 tabela_phi <- function(Phi) {
   k <- ncol(Phi)
   htmltools::div(
@@ -634,7 +634,7 @@ reflexao_missao <- function(k) {
   )
 }
 
-# --- Alfa de cada fator (aba 6) -----------------------------------------
+# --- Alfa de cada fator (aba 7) -----------------------------------------
 tabela_alfa <- function(alfas) {
   linhas <- lapply(alfas$fatores, function(f) {
     n_itens <- length(f$itens)
@@ -684,7 +684,7 @@ tabela_alfa <- function(alfas) {
 }
 
 # =====================================================================
-# 6. COMPARAÇÃO ENTRE A SOLUÇÃO GUARDADA E A ATUAL (aba 4)
+# 6. COMPARAÇÃO ENTRE A SOLUÇÃO GUARDADA E A ATUAL (aba 5)
 # =====================================================================
 NOMES_EXTRACAO <- c(minres = "minres", ml = "ml", pa = "pa")
 NOMES_ROTACAO <- c(none = "sem rotação", varimax = "varimax", oblimin = "oblimin", promax = "promax")
@@ -816,7 +816,7 @@ tabela_itens <- function(diag, excluidos, alfas, manual) {
       list(htmltools::tags$option(value = "0", selected = if (atual == "0") NA, "Fora das escalas")))
     seletor <- htmltools::tags$select(
       class = "form-select form-select-sm", style = "min-width:14rem;",
-      title = "De qual escala este item faz parte (para o alfa e o ômega da aba 6). “Auto” = pela maior carga.",
+      title = "De qual escala este item faz parte (para o alfa e o ômega da aba 7). “Auto” = pela maior carga.",
       onchange = sprintf("Shiny.setInputValue('escala_item', {item: '%s', escala: this.value}, {priority: 'event'})", cod),
       opcoes)
 
@@ -856,7 +856,7 @@ tabela_itens <- function(diag, excluidos, alfas, manual) {
         th(class = "text-end", title = "KMO do item: o quanto ele compartilha com os demais", "KMO"),
         th(class = "text-end", title = "Comunalidade: quanto do item os fatores explicam", "h²"),
         th(style = "white-space:nowrap;", "Maior carga"),
-        th(style = "white-space:nowrap;", title = "De qual escala o item faz parte, para o alfa e o ômega (aba 6)", "Escala (para o alfa)"),
+        th(style = "white-space:nowrap;", title = "De qual escala o item faz parte, para o alfa e o ômega (aba 7)", "Escala (para o alfa)"),
         th(class = "text-end", style = "white-space:nowrap;",
            title = "Alfa que a escala do item teria sem ele; embaixo, a diferença em relação ao alfa atual da escala",
            "Alfa sem", htmltools::tags$br(), "o item"),
