@@ -230,17 +230,38 @@ abas <- navset_card_tab(
 # para não espremer os gráficos.
 # Quando muda algum controle, só a parte "Conferência" é redesenhada:
 # assim o comentário da reflexão, se estiver aberto, não fecha sozinho.
+# O cabeçalho é um botão: um clique fecha o painel (sobra só uma linha
+# com o resumo) e outro clique abre de novo.
 painel_missoes <- card(
   class = "painel-missoes", fill = FALSE,
-  card_header("Missões guiadas"),
+  card_header(
+    class = "p-0",
+    tags$button(
+      type = "button", id = "botao_recolher_missoes",
+      class = "botao-recolher btn w-100 d-flex align-items-center gap-2 text-start px-3 py-2",
+      `data-bs-toggle` = "collapse", `data-bs-target` = "#corpo_missoes",
+      `aria-expanded` = "true", `aria-controls` = "corpo_missoes",
+      span(class = "seta", "▾"),
+      span(class = "fw-semibold text-nowrap", "Missões guiadas"),
+      span(class = "small text-muted text-truncate", style = "min-width:0;",
+           uiOutput("missoes_resumo", inline = TRUE)),
+      span(class = "rotulo ms-auto small text-muted text-nowrap")
+    )
+  ),
   card_body(
-    fillable = FALSE,
-    uiOutput("missoes_topo"),
-    uiOutput("missao_texto"),
-    uiOutput("missao_conferencia"),
-    uiOutput("missao_reflexao"),
-    div(class = "mt-3 text-end",
-        actionLink("recomecar_missoes", "Recomeçar as missões", class = "small text-muted"))
+    padding = 0, gap = 0, fillable = FALSE,
+    div(
+      id = "corpo_missoes", class = "collapse show",
+      div(
+        class = "corpo-missoes p-3",
+        uiOutput("missoes_topo"),
+        uiOutput("missao_texto"),
+        uiOutput("missao_conferencia"),
+        uiOutput("missao_reflexao"),
+        div(class = "mt-3 text-end",
+            actionLink("recomecar_missoes", "Recomeçar as missões", class = "small text-muted"))
+      )
+    )
   )
 )
 
@@ -254,6 +275,21 @@ script_missoes <- tags$script(HTML("
   });
   Shiny.addCustomMessageHandler('salvar_missoes', function(x) {
     try { localStorage.setItem('afe_missoes', JSON.stringify(x)); } catch (e) {}
+  });
+
+  // Lembra se o painel de missões ficou aberto ou fechado
+  $(function() {
+    var corpo = document.getElementById('corpo_missoes');
+    var botao = document.getElementById('botao_recolher_missoes');
+    var fechado = false;
+    try { fechado = localStorage.getItem('afe_missoes_fechado') === '1'; } catch (e) {}
+    if (fechado) { corpo.classList.remove('show'); botao.setAttribute('aria-expanded', 'false'); }
+    corpo.addEventListener('hidden.bs.collapse', function() {
+      try { localStorage.setItem('afe_missoes_fechado', '1'); } catch (e) {}
+    });
+    corpo.addEventListener('shown.bs.collapse', function() {
+      try { localStorage.setItem('afe_missoes_fechado', '0'); } catch (e) {}
+    });
   });
 "))
 
@@ -270,15 +306,21 @@ ui <- page_sidebar(
   tags$style(HTML("
     .nav-tabs .nav-link { padding: .5rem .7rem; }
     .botao-missao { min-width: 2.3rem; }
+    .botao-recolher { border: 0; border-radius: 0; }
+    .botao-recolher:hover { background: rgba(0,0,0,.04); }
+    .botao-recolher .seta { display: inline-block; transition: transform .2s; }
+    .botao-recolher[aria-expanded='false'] .seta { transform: rotate(-90deg); }
+    .botao-recolher .rotulo::after { content: 'fechar'; }
+    .botao-recolher[aria-expanded='false'] .rotulo::after { content: 'abrir'; }
     .painel-missoes { height: auto !important; }
-    .painel-missoes .card-body { overflow-y: auto; max-height: 55vh; }
+    .painel-missoes .corpo-missoes { overflow-y: auto; max-height: 55vh; }
     @media (max-width: 1399.98px) {
       .bslib-grid > :has(> .painel-missoes) { order: -1; }
     }
     /* Em telas largas, o painel acompanha a rolagem da página */
     @media (min-width: 1400px) {
       .painel-missoes { position: sticky; top: 1rem; }
-      .painel-missoes .card-body { max-height: calc(100vh - 7rem); }
+      .painel-missoes .corpo-missoes { max-height: calc(100vh - 7rem); }
     }
   ")),
   script_missoes,
@@ -671,6 +713,14 @@ server <- function(input, output, session) {
     progresso_missoes(concluidas()),
     botoes_missoes(missao_atual(), concluidas())
   ))
+
+  # Resumo de uma linha no cabeçalho (é o que aparece com o painel fechado)
+  output$missoes_resumo <- renderUI({
+    k <- missao_atual()
+    span(sprintf("· Missão %d: %s%s · %d de %d concluídas",
+                 k, MISSOES[[k]]$titulo, if (k %in% concluidas()) " ✔︎" else "",
+                 length(concluidas()), N_MISSOES))
+  })
 
   output$missao_texto <- renderUI(conteudo_missao(missao_atual()))
 
