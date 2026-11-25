@@ -75,7 +75,57 @@ barra_lateral <- sidebar(
       textOutput("resumo_amostra", inline = TRUE)),
 
   actionButton("sortear", "Sortear outra amostra",
-               icon = icon("shuffle"), class = "btn-outline-primary")
+               icon = icon("shuffle"), class = "btn-outline-primary"),
+
+  div(class = "small mt-2",
+      uiOutput("resumo_itens_lateral"),
+      actionLink("editar_itens", "Escolher os itens (aba 0)", class = "small"))
+)
+
+# --- Aba 0: os itens (incluir/excluir e montar as escalas)
+aba_itens <- nav_panel(
+  "0. Itens", value = "itens",
+  p("Antes de analisar, conheça os ", strong("25 itens"), " do questionário. Cada pessoa disse o quanto cada frase a descreve, ",
+    "de 1 (discordo totalmente) a 6 (concordo totalmente). Os itens marcados com ", strong("(−)"), " são ", strong("invertidos"),
+    ": concordar com eles indica ", em("menos"), " do traço."),
+  p(class = "small text-muted",
+    "Nesta aba você pode ", strong("tirar itens da análise"), " (desmarcando a caixinha) e decidir de ", strong("qual escala"),
+    " cada item faz parte (para o alfa e o ômega da aba 6). Volte aqui quando quiser: todas as abas passam a usar só os itens marcados."),
+  uiOutput("contexto_itens"),
+  div(class = "d-flex flex-wrap align-items-center gap-2 mb-2",
+      uiOutput("resumo_itens", inline = TRUE),
+      actionButton("recolocar_itens", "Recolocar todos os itens", icon = icon("rotate-left"),
+                   class = "btn-sm btn-outline-secondary")),
+  uiOutput("avisos_itens"),
+  legenda_dominios(),
+  uiOutput("tabela_itens"),
+  tags$details(
+    class = "mt-2 mb-3",
+    tags$summary(strong("Quando excluir um item? (leia antes de decidir)")),
+    div(class = "small mt-2",
+      p("Os ", strong("sinais para investigar"), " da tabela não são ordens de exclusão. Uma exclusão se justifica quando ",
+        strong("duas evidências"), " apontam na mesma direção:"),
+      tags$ol(
+        tags$li(strong("Estatística:"), " KMO do item abaixo de 0,50; comunalidade (h²) muito baixa; nenhuma carga forte; carga cruzada que persiste; caso de Heywood."),
+        tags$li(strong("Conteúdo:"), " ao reler o item, ele parece ambíguo, mal redigido ou medir outra coisa.")),
+      p(strong("Cuidados:")),
+      tags$ul(
+        tags$li(strong("Uma decisão por vez."), " Excluir um item muda todas as cargas — às vezes outro item muda de fator."),
+        tags$li(strong("Não “decore” a amostra."), " Excluir itens até o ajuste ficar bom pode só aproveitar o acaso desta amostra. Sorteie outra e veja se a decisão se sustenta."),
+        tags$li(strong("Cada item retirado estreita o construto."), " Uma escala com menos itens pode deixar de medir partes importantes do traço."),
+        tags$li(strong("Cada fator precisa de pelo menos 3 itens"), " para ficar bem definido."),
+        tags$li(strong("Cuidado com os invertidos:"), " eles costumam ter cargas menores por um efeito de método. Tirá-los pode melhorar os números e piorar o instrumento (veja a missão 17)."),
+        tags$li(strong("“Alfa sem o item” não decide sozinho:"), " um alfa maior não quer dizer uma escala melhor."),
+        tags$li(strong("Registre e relate"), " cada decisão — o diário abaixo ajuda nisso."))
+    )
+  ),
+  card(
+    card_header("Diário de decisões"),
+    p(class = "small text-muted",
+      "Cada vez que você tira ou recoloca itens, o app registra como ficaram os principais resultados, com a configuração usada no momento. ",
+      "Para comparar em detalhe duas situações, use “Guardar esta solução para comparar” na aba 4."),
+    uiOutput("diario")
+  )
 )
 
 # --- Aba 1: correlações
@@ -338,7 +388,7 @@ aba_fatores <- nav_panel(
 
 abas <- navset_card_tab(
   id = "aba",
-  aba_correlacoes, aba_kmo, aba_scree, aba_cargas, aba_rotacao, aba_fatores
+  aba_itens, aba_correlacoes, aba_kmo, aba_scree, aba_cargas, aba_rotacao, aba_fatores
 )
 
 # Painel das missões guiadas (próximas etapas).
@@ -539,9 +589,25 @@ server <- function(input, output, session) {
     ))
   })
 
+  # --- Os itens que entram na análise (aba 0) ---------------------------
+  MIN_ITENS <- 6
+  excluidos <- reactiveVal(character(0))
+  incluidos <- reactive(setdiff(itens$codigo, excluidos()))
+  # Espera um pouco (0,6 s) para juntar vários cliques antes de recalcular
+  incluidos_d <- debounce(incluidos, 600)
+  excluidos_d <- reactive(setdiff(itens$codigo, incluidos_d()))
+
+  # A matriz de correlação usada em TODAS as análises: só os itens incluídos.
+  # (Para Pearson e para a policórica pronta, tirar um item é o mesmo que
+  # recalcular sem ele, porque as correlações são calculadas par a par.)
+  R_analise <- reactive({
+    inc <- incluidos_d()
+    correlacao()$R[inc, inc, drop = FALSE]
+  })
+
   # --- KMO / Bartlett e análise paralela --------------------------------
-  kmo <- reactive(avaliar_kmo(correlacao()$R, nrow(amostra())))
-  paralela <- reactive(analise_paralela(correlacao()$R, nrow(amostra()), semente()))
+  kmo <- reactive(avaliar_kmo(R_analise(), nrow(amostra())))
+  paralela <- reactive(analise_paralela(R_analise(), nrow(amostra()), semente()))
 
   # --- A análise fatorial -------------------------------------------------
   # Espera o aluno soltar o controle do nº de fatores (0,3 s).
@@ -549,10 +615,10 @@ server <- function(input, output, session) {
 
   # Sempre calculamos a solução SEM rotação (para a aba 5 comparar) e a
   # solução COM a rotação escolhida. Se a rotação for "nenhuma", são iguais.
-  afe_sem <- reactive(rodar_afe(correlacao()$R, nrow(amostra()), nfat(), input$extracao, "none"))
+  afe_sem <- reactive(rodar_afe(R_analise(), nrow(amostra()), nfat(), input$extracao, "none"))
   afe_com <- reactive({
     if (input$rotacao == "none") afe_sem()
-    else rodar_afe(correlacao()$R, nrow(amostra()), nfat(), input$extracao, input$rotacao)
+    else rodar_afe(R_analise(), nrow(amostra()), nfat(), input$extracao, input$rotacao)
   })
   # Atalho: a solução rotacionada, só se deu certo (senão as saídas esperam)
   afe <- reactive({
@@ -579,7 +645,7 @@ server <- function(input, output, session) {
   output$aviso_correlacao3 <- renderUI(aviso_correlacao())
 
   output$mapa_cor <- renderPlot({
-    grafico_correlacao(correlacao()$R, mostrar_numeros = isTRUE(input$mostrar_numeros))
+    grafico_correlacao(R_analise(), mostrar_numeros = isTRUE(input$mostrar_numeros))
   }, res = 96)
 
   # =====================================================================
@@ -649,7 +715,7 @@ server <- function(input, output, session) {
 
   ajuste_k <- reactive({
     withProgress(message = "Calculando modelos de 1 a 10 fatores…", value = 0.5, {
-      ajuste_por_k(correlacao()$R, nrow(amostra()), input$extracao)
+      ajuste_por_k(R_analise(), nrow(amostra()), input$extracao)
     })
   })
 
@@ -791,7 +857,8 @@ server <- function(input, output, session) {
 
   info_atual <- reactive(list(
     nfatores = nfat(), extracao = input$extracao, rotacao = input$rotacao,
-    correlacao = input$correlacao, n = nrow(amostra()), sorteio = semente() - 2025))
+    correlacao = input$correlacao, n = nrow(amostra()), sorteio = semente() - 2025,
+    excluidos = excluidos_d()))
 
   observeEvent(input$guardar_solucao, {
     a <- afe_com()
@@ -918,17 +985,24 @@ server <- function(input, output, session) {
     )
   })
 
-  alfas <- reactive(alfa_por_fator(correlacao()$R, afe()$L, input$corte))
+  alfas <- reactive(alfa_por_fator(R_analise(), afe()$L, input$corte, escalas_manuais()))
 
   output$tabela_alfa <- renderUI(tabela_alfa(alfas()))
 
   output$itens_fora <- renderUI({
-    fora <- alfas()$fora
-    if (length(fora) == 0) return(p(class = "small", selo("bom", "Todos os itens entraram em algum fator.")))
-    p(class = "small",
-      selo("atencao", sprintf("%s sem carga forte em nenhum fator (ficaram fora do alfa): ",
-                              if (length(fora) == 1) "1 item ficou" else paste(length(fora), "itens ficaram"))),
-      lapply(fora, chip_codigo))
+    al <- alfas()
+    fora_auto <- setdiff(al$fora, al$fora_manual)
+    excl <- excluidos_d()
+    tagList(
+      if (length(al$fora) == 0) p(class = "small", selo("bom", "Todos os itens da análise entraram em alguma escala.")),
+      if (length(fora_auto) > 0) p(class = "small",
+        selo("atencao", sprintf("%s sem carga forte em nenhum fator (ficaram fora das escalas): ",
+                                if (length(fora_auto) == 1) "1 item ficou" else paste(length(fora_auto), "itens ficaram"))),
+        lapply(fora_auto, chip_codigo)),
+      if (length(al$fora_manual) > 0) p(class = "small",
+        selo("atencao", "Você deixou fora das escalas (aba 0): "), lapply(al$fora_manual, chip_codigo)),
+      if (length(excl) > 0) p(class = "small text-muted",
+        "Fora da análise (excluídos na aba 0): ", lapply(excl, chip_codigo)))
   })
 
   output$nota_alfa <- renderUI({
@@ -951,10 +1025,164 @@ server <- function(input, output, session) {
   })
 
   # =====================================================================
+  # Aba 0 — os itens
+  # =====================================================================
+  escalas_manuais <- reactiveVal(stats::setNames(integer(0), character(0)))
+  redesenhar_itens <- reactiveVal(0)   # força redesenhar a tabela (ex.: clique recusado)
+
+  # Desmarcar / marcar um item
+  observeEvent(input$alternar_item, {
+    cod <- input$alternar_item
+    ex <- excluidos()
+    # Os cliques rápidos são juntados num só recálculo; por isso as decisões
+    # se acumulam até o diário registrar (ex.: "Excluiu C4, C5").
+    anotar <- function(tipo) acao_pendente(c(isolate(acao_pendente()), paste(tipo, cod)))
+    if (cod %in% ex) {
+      excluidos(setdiff(ex, cod))
+      anotar("Recolocou")
+    } else if (length(itens$codigo) - length(ex) - 1 < MIN_ITENS) {
+      showNotification(sprintf("A análise precisa de pelo menos %d itens.", MIN_ITENS), type = "warning")
+      redesenhar_itens(redesenhar_itens() + 1)
+    } else {
+      excluidos(c(ex, cod))
+      anotar("Excluiu")
+    }
+  })
+
+  observeEvent(input$recolocar_itens, {
+    if (length(excluidos()) == 0) return()
+    excluidos(character(0))
+    acao_pendente("Recolocou todos os itens")
+  })
+
+  # "Excluiu C4", "Excluiu C5", "Recolocou A1" -> "Excluiu C4, C5; recolocou A1"
+  juntar_acoes <- function(acoes) {
+    if (length(acoes) == 1) return(acoes)
+    tipo <- sub(" .*", "", acoes); cod <- sub("^\\S+ ", "", acoes)
+    partes <- vapply(unique(tipo), function(t) paste(t, paste(cod[tipo == t], collapse = ", ")), "")
+    paste(c(partes[1], tolower(substr(partes[-1], 1, 1)) |> paste0(substring(partes[-1], 2))), collapse = "; ")
+  }
+
+  observeEvent(input$editar_itens, nav_select("aba", "itens"))
+
+  # Escolher a escala de um item ("auto", "0" = fora, ou o nº do fator)
+  observeEvent(input$escala_item, {
+    it <- input$escala_item$item
+    v <- input$escala_item$escala
+    m <- escalas_manuais()
+    m <- m[names(m) != it]
+    if (!identical(v, "auto")) m[it] <- as.integer(v)
+    escalas_manuais(m)
+  })
+
+  # Quando a solução muda, os fatores podem mudar de número e de ordem:
+  # as escolhas manuais de escala deixam de fazer sentido e são desfeitas.
+  assinatura_solucao <- reactive(paste(
+    nfat(), input$rotacao, input$extracao, input$correlacao, n_amostra(), semente(),
+    paste(incluidos_d(), collapse = ",")))
+  observeEvent(assinatura_solucao(), {
+    if (length(escalas_manuais()) > 0) {
+      escalas_manuais(stats::setNames(integer(0), character(0)))
+      showNotification("A solução mudou, então as escolhas manuais de escala (aba 0) foram desfeitas: os fatores podem ter mudado de número e de ordem.",
+                       type = "warning", duration = 8)
+    }
+  }, ignoreInit = TRUE)
+
+  diagnostico <- reactive(diagnosticar_itens(R_analise(), kmo(), afe(), alfas(), input$corte))
+
+  output$contexto_itens <- renderUI({
+    p(class = "small p-2 rounded", style = "background:#eef4fc;",
+      strong("Os números desta tabela usam a solução atual: "),
+      sprintf("%s, extração %s, %s, ponto de corte %s. ",
+              if (nfat() == 1) "1 fator" else paste(nfat(), "fatores"), input$extracao,
+              NOMES_ROTACAO[[input$rotacao]], fmt(input$corte, 2)),
+      "Escolha o número de fatores e a rotação (barra lateral e abas 3 e 4) antes de decidir sobre os itens.")
+  })
+
+  output$resumo_itens <- renderUI({
+    excl <- excluidos()
+    span(strong(sprintf("%d de %d itens na análise", length(itens$codigo) - length(excl), length(itens$codigo))),
+         if (length(excl) > 0) span(class = "text-muted", " · excluídos: ", paste(excl, collapse = ", ")))
+  })
+
+  output$resumo_itens_lateral <- renderUI({
+    excl <- excluidos()
+    if (length(excl) == 0) return(span(class = "text-muted", sprintf("Itens na análise: todos os %d.", length(itens$codigo))))
+    span(strong(sprintf("Itens na análise: %d de %d", length(itens$codigo) - length(excl), length(itens$codigo))),
+         span(class = "text-muted", sprintf(" (sem %s)", paste(excl, collapse = ", "))))
+  })
+
+  output$avisos_itens <- renderUI({
+    a <- afe_com()
+    avisos <- list()
+    if (!isTRUE(a$ok)) avisos <- c(avisos, list(selo("ruim",
+      "Com estes itens e estas escolhas, o modelo não pôde ser estimado. Recoloque itens ou use menos fatores.")))
+    if (isTRUE(a$ok)) {
+      al <- alfas()
+      pequenas <- vapply(al$fatores, function(f) length(f$itens) < 3, logical(1))
+      if (any(pequenas)) avisos <- c(avisos, list(selo("atencao", sprintf(
+        "%s com menos de 3 itens: %s. Um fator precisa de pelo menos 3 itens para ficar bem definido.",
+        if (sum(pequenas) == 1) "Uma escala ficou" else "Algumas escalas ficaram",
+        paste(vapply(al$fatores[pequenas], `[[`, "", "fator"), collapse = ", ")))))
+    }
+    if (length(intersect(excluidos(), INVERTIDOS)) >= 3) avisos <- c(avisos, list(selo("atencao",
+      "Você excluiu vários itens invertidos. Cuidado: os números podem melhorar enquanto o instrumento piora (veja a missão 17).")))
+    if (length(avisos) == 0) return(NULL)
+    div(class = "small mb-2", lapply(avisos, div))
+  })
+
+  output$tabela_itens <- renderUI({
+    redesenhar_itens()
+    a <- afe_com()
+    if (isTRUE(a$ok)) tabela_itens(diagnostico(), excluidos_d(), alfas(), escalas_manuais())
+    else tabela_itens(NULL, excluidos_d(), NULL, escalas_manuais())
+  })
+
+  # --- Diário de decisões: registra o resultado depois de cada decisão
+  diario <- reactiveVal(NULL)
+  acao_pendente <- reactiveVal(sprintf("Início (%d itens)", length(itens$codigo)))
+
+  observe({
+    acao <- acao_pendente()
+    req(length(acao) > 0)
+    acao <- juntar_acoes(acao)
+    # Espera a análise com o novo conjunto de itens ficar pronta
+    req(setequal(incluidos_d(), incluidos()))
+    a <- afe_com()
+    nova <- if (isTRUE(a$ok)) {
+      req(setequal(rownames(a$L), incluidos()))
+      cls <- classificar_itens(a$L, isolate(input$corte))
+      data.frame(acao = acao, n_itens = nrow(a$L),
+                 config = sprintf("%d fatores · %s · %s", a$nfatores, NOMES_ROTACAO[[a$rotacao]],
+                                  if (isolate(input$correlacao) == "policorica") "policórica" else "Pearson"),
+                 TLI = a$TLI, RMSEA = a$RMSEA, total = a$total, kmo = kmo()$geral,
+                 cruzadas = sum(cls$situacao == "cruzada"), sem_fator = sum(cls$situacao == "sem_fator"),
+                 stringsAsFactors = FALSE)
+    } else {
+      data.frame(acao = paste(acao, "(modelo não estimado)"), n_itens = length(incluidos()), config = "—",
+                 TLI = NA, RMSEA = NA, total = NA, kmo = NA, cruzadas = 0L, sem_fator = 0L, stringsAsFactors = FALSE)
+    }
+    isolate(diario(rbind(diario(), nova)))
+    acao_pendente(NULL)
+  })
+
+  output$diario <- renderUI({
+    d <- diario()
+    if (is.null(d)) return(p(class = "small text-muted", "Calculando…"))
+    tabela_diario(d)
+  })
+
+  # =====================================================================
   # Missões guiadas
   # =====================================================================
   missao_atual <- reactiveVal(1L)
   concluidas <- reactiveVal(integer(0))
+
+  # O que as missões podem conferir: os controles + o estado da aba 0
+  estado_missoes <- reactive(c(
+    reactiveValuesToList(input),
+    list(excluidos = excluidos(), n_excluidos = length(excluidos()),
+         n_manuais = length(escalas_manuais()), tem_guardada = !is.null(solucao_guardada()))))
 
   # Guarda o progresso no navegador
   salvar_missoes <- function() {
@@ -983,7 +1211,7 @@ server <- function(input, output, session) {
   # "Concluí esta missão": o app confere de novo antes de aceitar
   observeEvent(input$missao_concluida, {
     k <- as.integer(input$missao_concluida)
-    if (!is.na(k) && all(conferir_missao(MISSOES[[k]], input))) {
+    if (!is.na(k) && all(conferir_missao(MISSOES[[k]], estado_missoes()))) {
       concluidas(sort(unique(c(concluidas(), k))))
       salvar_missoes()
     }
@@ -1018,7 +1246,7 @@ server <- function(input, output, session) {
     k <- missao_atual()
     m <- MISSOES[[k]]
     feita <- k %in% concluidas()
-    ok <- conferir_missao(m, input)
+    ok <- conferir_missao(m, estado_missoes())
 
     botao <- if (feita) {
       div(class = "d-flex flex-wrap align-items-center gap-2",
@@ -1039,7 +1267,11 @@ server <- function(input, output, session) {
                            "O botão é liberado quando todos os itens da conferência estiverem marcados.")
       )
     }
-    tagList(lista_conferencia(m, ok), botao)
+    aviso_itens <- if (k <= 14 && length(excluidos()) > 0) div(
+      class = "small mt-2", selo("atencao", sprintf(
+        "Você excluiu itens na aba 0 (%s). As missões 1 a 14 foram pensadas com os 25 itens: os resultados podem ficar diferentes dos comentários.",
+        paste(excluidos(), collapse = ", "))))
+    tagList(lista_conferencia(m, ok), botao, aviso_itens)
   })
 }
 

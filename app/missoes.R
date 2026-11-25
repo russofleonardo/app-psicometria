@@ -11,6 +11,7 @@
 # =====================================================================
 
 NOMES_ABAS <- c(
+  itens       = "0. Itens",
   correlacoes = "1. Correlações",
   kmo         = "2. KMO e Bartlett",
   scree       = "3. Quantos fatores?",
@@ -275,6 +276,67 @@ MISSOES <- list(
     comentario = "Com 10 fatores, os índices ficam “bons”, mas aparecem fatores com um só item (um fator precisa de pelo menos 3 itens para ser interpretável) e, às vezes, casos de Heywood: sinais de que o modelo está “decorando” a amostra. Uma boa justificativa junta várias evidências: (1) KMO e Bartlett adequados; (2) número de fatores apoiado pela análise paralela E pela teoria; (3) índices de ajuste aceitáveis; (4) cargas claras, com poucas cargas cruzadas; (5) rotação coerente com a correlação entre os fatores; (6) alfas aceitáveis. Para estes dados, 5 fatores com rotação oblíqua e correlação policórica é uma escolha bem defensável — mas o importante é que a sua escolha esteja bem argumentada."
   )
 )
+
+# --- Missões sobre decisões com os itens (aba 0) ------------------------
+# ATENÇÃO: missões novas entram sempre no FIM da lista (o progresso salvo no
+# navegador usa o número da missão).
+MISSOES <- c(MISSOES, list(
+
+  list(
+    titulo = "Decidindo sobre um item fraco",
+    nivel = "Desafio", aba = "itens",
+    objetivo = "Decidir se um item deve sair da análise — usando os números E o conteúdo do item — e ver todas as consequências.",
+    passos = c(
+      "Use a amostra completa, 5 fatores e rotação oblimin.",
+      "Na aba 0, veja os “sinais para investigar”. Qual item tem a menor comunalidade (h²)? Leia o texto dele.",
+      "Na aba 4, clique em “Guardar esta solução para comparar”.",
+      "Volte à aba 0 e desmarque esse item.",
+      "Veja o “Diário de decisões” (aba 0) e a sub-aba “Comparar” (aba 4): o que melhorou? O que piorou? Algum OUTRO item mudou de fator?"
+    ),
+    condicoes = list(
+      cond_fatores(5), cond_rotacao("oblimin"), cond_amostra_completa(),
+      cond("Guardar uma solução para comparar (aba 4)", function(i) isTRUE(i$tem_guardada)),
+      cond("Excluir exatamente 1 item (aba 0)", function(i) isTRUE(i$n_excluidos == 1))
+    ),
+    reflexao = "O ajuste e o alfa da escala do item melhoraram um pouco. Isso basta para justificar a exclusão? O que se perde?",
+    comentario = "Não basta. Uma exclusão se justifica quando a estatística (comunalidade baixa, nenhuma carga forte, KMO baixo) E o conteúdo apontam na mesma direção — por exemplo, um item ambíguo ou que mede outra coisa. Nestes dados, o item mais fraco costuma ser A1 (“Indiferente aos sentimentos alheios”): sem ele, o TLI e o alfa da Amabilidade sobem um pouco. Mas repare: outro item pode mudar de fator (E3, por exemplo, pode passar para a Amabilidade), e o alfa de outra escala pode cair. Além disso, cada item retirado estreita o que a escala mede. Boas práticas: uma decisão por vez, sempre justificada e relatada; e conferir se ela se sustenta em outra amostra (sorteie outra!) — senão, você pode estar só “decorando” esta amostra."
+  ),
+
+  list(
+    titulo = "Montando as escalas",
+    nivel = "Desafio", aba = "fatores",
+    objetivo = "Decidir de qual escala um item com carga cruzada deve fazer parte, e ver como isso muda o alfa e o ômega.",
+    passos = c(
+      "Com 5 fatores e rotação oblimin, procure na aba 0 um item com “carga cruzada” (ou cuja maior carga está num fator de outro domínio).",
+      "Na coluna “Escala (para o alfa)”, mude esse item para outra escala — ou para “Fora das escalas”.",
+      "Veja na aba 6 como mudaram o alfa e o ômega das escalas envolvidas. O item aparece marcado como “manual”."
+    ),
+    condicoes = list(
+      cond_aba("fatores"), cond_fatores(5), cond_rotacao("oblimin"),
+      cond("Mudar a escala de pelo menos 1 item (aba 0)", function(i) isTRUE(i$n_manuais >= 1))
+    ),
+    reflexao = "Quando a carga de um item aponta para um fator, mas o conteúdo (e a teoria) aponta para outro, a qual escala ele deve pertencer?",
+    comentario = "Não há regra automática. O ponto de partida é a maior carga, mas a decisão final também considera o conteúdo do item e o objetivo do instrumento. Se as duas cargas são parecidas, o item mede um pouco de cada coisa: muitas vezes a melhor escolha é deixá-lo fora das escalas (e relatar isso). Repare que mudar um item de escala altera o alfa e o ômega das duas escalas — mas escolher a composição só para maximizar o alfa é um erro: a escala deve medir o construto, não apenas ter itens parecidos entre si. Atenção: as escolhas manuais são desfeitas quando você muda a solução (número de fatores, rotação, itens…), porque os fatores podem mudar de número e de ordem."
+  ),
+
+  list(
+    titulo = "A armadilha dos itens invertidos",
+    nivel = "Desafio", aba = "itens",
+    objetivo = "Ver o que acontece quando se excluem todos os itens invertidos — e entender por que isso é uma má ideia, mesmo quando os números melhoram.",
+    passos = c(
+      "Com 5 fatores e rotação oblimin, guarde a solução (aba 4, “Guardar esta solução para comparar”).",
+      "Na aba 0, desmarque os 7 itens invertidos — os marcados com (−): A1, C4, C5, E1, E2, O2 e O5.",
+      "Compare: o TLI e o RMSEA melhoraram? E a tabela de cargas (aba 4) e a coluna “Parece medir” (aba 6) — os 5 domínios continuam lá?"
+    ),
+    condicoes = list(
+      cond_fatores(5), cond_rotacao("oblimin"),
+      cond("Guardar uma solução para comparar (aba 4)", function(i) isTRUE(i$tem_guardada)),
+      cond("Excluir os 7 itens invertidos (aba 0)", function(i) isTRUE(all(INVERTIDOS %in% i$excluidos)))
+    ),
+    reflexao = "Se alguns números melhoraram, por que não é recomendado tirar os itens invertidos?",
+    comentario = "Itens invertidos costumam ter cargas mais fracas por um “efeito de método”: algumas pessoas tendem a concordar com tudo (aquiescência), leem com pressa ou se confundem com a negação. Tirá-los pode melhorar alguns índices — nestes dados, o TLI provavelmente sobe —, mas a estrutura se desfaz: a Extroversão, que perde dois de seus itens, tende a desaparecer, e outro fator surge no lugar. Mesmo quando a estrutura sobrevive, uma escala só com itens “no mesmo sentido” fica vulnerável a quem concorda com tudo, cujos escores ficam inflados. Por isso, a boa prática é manter itens nos dois sentidos e, se preciso, tratar o efeito de método em modelos confirmatórios. Lição geral: um índice melhor não significa um instrumento melhor. Para continuar, recoloque os itens (botão “Recolocar todos os itens”, na aba 0)."
+  )
+))
 
 N_MISSOES <- length(MISSOES)
 

@@ -656,7 +656,13 @@ tabela_alfa <- function(alfas) {
     htmltools::tags$tr(
       htmltools::tags$th(f$fator),
       htmltools::tags$td(style = "white-space:nowrap;", parece),
-      htmltools::tags$td(lapply(f$itens, function(cod) chip_codigo(cod, cod %in% f$invertidos))),
+      htmltools::tags$td(lapply(f$itens, function(cod) htmltools::tags$span(
+        class = "text-nowrap d-inline-block",
+        chip_codigo(cod, cod %in% f$invertidos),
+        if (cod %in% f$manuais) htmltools::tags$span(
+          class = "badge rounded-pill text-bg-light me-2", style = "font-weight:500;",
+          title = if (cod %in% f$carga_baixa) "Colocado à mão nesta escala, mas a carga dele neste fator é baixa" else "Colocado à mão nesta escala",
+          if (cod %in% f$carga_baixa) "manual ⚠︎" else "manual")))),
       htmltools::tags$td(class = "text-end", style = estilo_num, alfa_txt),
       htmltools::tags$td(class = "text-end", style = estilo_num, omega_txt),
       htmltools::tags$td(style = "white-space:nowrap;", classe)
@@ -689,7 +695,8 @@ descrever_solucao <- function(info) {
     if (info$nfatores == 1) "1 fator" else paste(info$nfatores, "fatores"),
     NOMES_EXTRACAO[[info$extracao]], NOMES_ROTACAO[[info$rotacao]],
     if (info$correlacao == "policorica") "policórica" else "Pearson",
-    sprintf("n = %s (sorteio %d)", fmt_int(info$n), info$sorteio)
+    sprintf("n = %s (sorteio %d)", fmt_int(info$n), info$sorteio),
+    if (length(info$excluidos) > 0) paste("sem", paste(info$excluidos, collapse = ", "))
   ), collapse = " · ")
 }
 
@@ -703,6 +710,7 @@ tabela_comparacao <- function(cmp, guardada, atual) {
     class = "table table-sm align-middle",
     htmltools::tags$thead(tr(th(""), th(class = "text-end", "Guardada"), th(class = "text-end", "Atual"))),
     htmltools::tags$tbody(
+      linha("Itens na análise", nrow(guardada$L), nrow(atual$L)),
       linha("Número de fatores", guardada$nfatores, atual$nfatores),
       linha("TLI (maior = melhor)", fmt(guardada$TLI, 3), fmt(atual$TLI, 3)),
       linha("RMSEA (menor = melhor)", fmt(guardada$RMSEA, 3), fmt(atual$RMSEA, 3)),
@@ -736,15 +744,18 @@ tabela_comparacao <- function(cmp, guardada, atual) {
       th("Fator na guardada"), th("Fator na atual"), th(""))),
     htmltools::tags$tbody(lapply(seq_len(nrow(cmp$itens)), function(i) {
       it <- cmp$itens[i, ]
-      fator_txt <- function(f, carga, sit) htmltools::tags$span(
+      excluido <- htmltools::tags$span(class = "text-muted fst-italic", "excluído")
+      fator_txt <- function(presente, f, carga, sit) if (!presente) excluido else htmltools::tags$span(
         f, htmltools::tags$span(class = "text-muted", sprintf(" (%s)", fmt_sinal(carga))),
         if (sit == "sem_fator") htmltools::tags$span(class = "small text-muted", " — sem carga forte"))
+      aviso <- if (it$na_guardada != it$na_atual) selo("atencao", if (it$na_atual) "voltou para a análise" else "foi excluído")
+               else if (isTRUE(it$mudou)) selo("atencao", "mudou de fator")
       tr(td(style = "white-space:nowrap;", chip_item(it$codigo)),
-         num(fmt(it$h2_guardada, 2)), num(fmt(it$h2_atual, 2)),
-         td(style = "white-space:nowrap;", fator_txt(it$fator_guardada, it$carga_guardada, it$situacao_guardada)),
-         td(style = "white-space:nowrap;", fator_txt(it$fator_atual, it$carga_atual, it$situacao_atual)),
-         td(class = "small", style = "white-space:nowrap;",
-            if (isTRUE(it$mudou)) selo("atencao", "mudou de fator")))
+         num(if (it$na_guardada) fmt(it$h2_guardada, 2) else "—"),
+         num(if (it$na_atual) fmt(it$h2_atual, 2) else "—"),
+         td(style = "white-space:nowrap;", fator_txt(it$na_guardada, it$fator_guardada, it$carga_guardada, it$situacao_guardada)),
+         td(style = "white-space:nowrap;", fator_txt(it$na_atual, it$fator_atual, it$carga_atual, it$situacao_atual)),
+         td(class = "small", style = "white-space:nowrap;", aviso))
     }))
   )
 
@@ -755,9 +766,124 @@ tabela_comparacao <- function(cmp, guardada, atual) {
     htmltools::p(class = "small text-muted",
       "A congruência de Tucker compara as cargas de dois fatores (vai de 0 a 1). ",
       "Referência usual: 0,95 ou mais = o mesmo fator; de 0,85 a 0,94 = parecido; abaixo disso = diferente. ",
-      "Os números dos fatores podem mudar de uma solução para outra — por isso comparamos pelo conteúdo, não pelo número."),
+      "Os números dos fatores podem mudar de uma solução para outra — por isso comparamos pelo conteúdo, não pelo número. ",
+      "Se as soluções têm itens diferentes, a comparação usa só os itens que estão nas duas."),
     htmltools::div(style = "overflow-x:auto;", pares),
     htmltools::h6(class = "mt-3", "Item a item"),
     htmltools::div(style = "overflow-x:auto;", itens_tab)
+  )
+}
+
+# =====================================================================
+# 7. ABA 0 — A LISTA DE ITENS (incluir/excluir, escala, sinais)
+# =====================================================================
+# As caixinhas e os seletores são HTML simples que avisam o servidor com
+# Shiny.setInputValue (o mesmo jeito dos botões das missões). Assim a tabela
+# pode ser redesenhada à vontade sem perder as escolhas, que ficam no servidor.
+tabela_itens <- function(diag, excluidos, alfas, manual) {
+  th <- htmltools::tags$th; td <- htmltools::tags$td; tr <- htmltools::tags$tr
+  # Sem diagnóstico (o modelo não pôde ser estimado): só as caixinhas
+  sem_diag <- is.null(diag) || is.null(alfas)
+  k <- if (sem_diag) 0 else length(alfas$fatores)
+  # Rótulo de cada escala: "F2 (parece Extroversão)"
+  rotulo_fator <- if (sem_diag) character(0) else vapply(alfas$fatores, function(f)
+    if (is.na(f$dominio)) f$fator else sprintf("%s · %s", f$fator, DOMINIOS[[f$dominio]]), "")
+
+  linhas <- lapply(itens$codigo, function(cod) {
+    incluido <- !(cod %in% excluidos)
+    caixa <- htmltools::tags$input(
+      type = "checkbox", class = "form-check-input", style = "cursor:pointer;",
+      title = if (incluido) "Tirar este item da análise" else "Recolocar este item na análise",
+      checked = if (incluido) NA,
+      onclick = sprintf("Shiny.setInputValue('alternar_item', '%s', {priority: 'event'})", cod))
+    if (!incluido) {
+      return(tr(style = "opacity:.5;",
+        td(caixa), td(style = "white-space:nowrap;", chip_item(cod)),
+        td(colspan = 6, class = "small fst-italic", "fora da análise")))
+    }
+    d <- if (sem_diag) NULL else diag[diag$codigo == cod, ]
+    if (is.null(d) || nrow(d) == 0) {
+      return(tr(td(caixa), td(style = "white-space:nowrap;", chip_item(cod)),
+                td(colspan = 6, class = "small text-muted", "—")))
+    }
+    auto <- composicao_escalas_auto(d)   # escala automática deste item
+    atual <- if (cod %in% names(manual)) as.character(manual[[cod]]) else "auto"
+    opcoes <- c(
+      list(htmltools::tags$option(value = "auto", selected = if (atual == "auto") NA,
+           sprintf("%s (auto)", if (auto == 0) "Fora das escalas" else rotulo_fator[auto]))),
+      lapply(seq_len(k), function(j) htmltools::tags$option(
+        value = j, selected = if (atual == as.character(j)) NA, rotulo_fator[j])),
+      list(htmltools::tags$option(value = "0", selected = if (atual == "0") NA, "Fora das escalas")))
+    seletor <- htmltools::tags$select(
+      class = "form-select form-select-sm", style = "min-width:12.5rem;",
+      title = "De qual escala este item faz parte (para o alfa e o ômega da aba 6). “Auto” = pela maior carga.",
+      onchange = sprintf("Shiny.setInputValue('escala_item', {item: '%s', escala: this.value}, {priority: 'event'})", cod),
+      opcoes)
+
+    alfa_txt <- if (is.na(d$alfa_sem)) htmltools::span(class = "text-muted", "—") else htmltools::tags$span(
+      fmt(d$alfa_sem, 2),
+      htmltools::tags$span(
+        class = "small", style = if (d$delta > 0.01) "color:#c98500;font-weight:700;" else "color:#898781;",
+        sprintf(" (%s%s)", if (d$delta >= 0) "+" else "−", fmt(abs(d$delta), 2))))
+
+    sinais <- if (nzchar(d$sinais)) strsplit(d$sinais, "|", fixed = TRUE)[[1]] else character(0)
+    nivel_sinal <- function(s) if (grepl("Heywood|baixo \\(< 0,50\\)|nenhuma", s)) "ruim" else "atencao"
+
+    tr(td(caixa),
+       td(style = "white-space:nowrap;", chip_item(cod)),
+       td(class = "text-end", style = estilo_num,
+          if (!is.na(d$msa) && d$msa < 0.5) htmltools::span(style = "color:#d03b3b;font-weight:700;", fmt(d$msa, 2)) else fmt(d$msa, 2)),
+       td(class = "text-end", style = estilo_num, fmt(d$h2, 2)),
+       td(style = estilo_num, sprintf("%s (%s)", d$fator, fmt_sinal(d$carga))),
+       td(seletor),
+       td(class = "text-end", style = estilo_num, alfa_txt),
+       td(class = "small", style = "min-width:11rem;",
+          if (length(sinais) == 0) htmltools::span(class = "text-muted", "—")
+          else lapply(sinais, function(s) htmltools::div(selo(nivel_sinal(s), s)))))
+  })
+
+  htmltools::div(
+    style = "overflow-x:auto;",
+    htmltools::tags$table(
+      class = "table table-sm align-middle",
+      htmltools::tags$thead(tr(
+        th(title = "Desmarque para tirar o item da análise", "Incluir"),
+        th("Item"),
+        th(class = "text-end", title = "KMO do item: o quanto ele compartilha com os demais", "KMO"),
+        th(class = "text-end", title = "Comunalidade: quanto do item os fatores explicam", "h²"),
+        th("Maior carga"),
+        th("Escala (para o alfa)"),
+        th(class = "text-end", title = "Alfa que a escala do item teria sem ele (entre parênteses, a diferença)", "Alfa sem o item"),
+        th("Sinais para investigar"))),
+      htmltools::tags$tbody(linhas)
+    )
+  )
+}
+
+# Escala automática de um item a partir do diagnóstico (0 = fora)
+composicao_escalas_auto <- function(d) {
+  if (d$situacao == "sem_fator") 0L else as.integer(sub("^F", "", d$fator))
+}
+
+# Diário de decisões
+tabela_diario <- function(diario) {
+  th <- htmltools::tags$th; td <- htmltools::tags$td; tr <- htmltools::tags$tr
+  num <- function(x) td(class = "text-end", style = estilo_num, x)
+  htmltools::div(
+    style = "overflow-x:auto;",
+    htmltools::tags$table(
+      class = "table table-sm align-middle small",
+      htmltools::tags$thead(tr(
+        th("#"), th("Decisão"), th(class = "text-end", "Itens"), th("Configuração"),
+        th(class = "text-end", "TLI"), th(class = "text-end", "RMSEA"),
+        th(class = "text-end", "Variância"), th(class = "text-end", "KMO"),
+        th(class = "text-end", title = "Itens com carga cruzada / itens sem carga forte", "Cruzadas / sem fator"))),
+      htmltools::tags$tbody(lapply(seq_len(nrow(diario)), function(i) {
+        d <- diario[i, ]
+        tr(td(i), td(htmltools::strong(d$acao)), num(d$n_itens), td(class = "text-muted", d$config),
+           num(fmt(d$TLI, 3)), num(fmt(d$RMSEA, 3)), num(fmt_pct(d$total)), num(fmt(d$kmo, 2)),
+           num(sprintf("%d / %d", d$cruzadas, d$sem_fator)))
+      }))
+    )
   )
 }

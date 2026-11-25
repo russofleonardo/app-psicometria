@@ -219,11 +219,14 @@ rodar_afe <- function(R, n, nfatores, extracao = "minres", rotacao = "none") {
   # O sinal de um fator é arbitrário (F e −F são a mesma solução). Viramos
   # cada fator para que a maioria das cargas fique positiva: assim o fator
   # de Extroversão aparece como "Extroversão", e não como "Introversão".
-  # (Só contam os itens cuja maior carga está naquele fator.)
+  # (Só contam os itens cuja maior carga está naquele fator. Os itens
+  # invertidos contam "ao contrário": o fator aponta para o lado em que os
+  # itens comuns têm carga positiva e os invertidos, negativa.)
   principal <- apply(abs(L), 1, which.max)
+  chave <- ifelse(rownames(L) %in% INVERTIDOS, -1, 1)
   sinal <- vapply(seq_len(ncol(L)), function(f) {
-    proprios <- L[principal == f, f]
-    soma <- if (length(proprios) > 0) sum(proprios) else sum(L[, f])
+    proprios <- principal == f
+    soma <- if (any(proprios)) sum(L[proprios, f] * chave[proprios]) else sum(L[, f] * chave)
     if (soma < 0) -1 else 1
   }, numeric(1))
   L <- sweep(L, 2, sinal, `*`)
@@ -408,12 +411,33 @@ omega_fator <- function(R, codigos, sinais) {
   sum(lambda)^2 / (sum(lambda)^2 + sum(1 - lambda^2))
 }
 
-alfa_por_fator <- function(R, L, corte) {
+# Composição das escalas: para cada item, o nº do fator da escala de que ele
+# faz parte (0 = fora das escalas). Automática: o fator da maior carga, se
+# ela passar do ponto de corte. "manual" (vetor nomeado: item -> nº do fator,
+# ou 0 = fora) substitui a escolha automática nos itens indicados.
+composicao_escalas <- function(L, corte, manual = NULL) {
   cls <- classificar_itens(L, corte)
+  comp <- stats::setNames(ifelse(cls$situacao == "sem_fator", 0L, as.integer(cls$principal)), cls$codigo)
+  if (length(manual) > 0) {
+    m <- manual[names(manual) %in% names(comp) & manual <= ncol(L)]
+    comp[names(m)] <- as.integer(m)
+  }
+  comp
+}
+
+# Sinal de cada item dentro da sua escala (para "desvirar" os invertidos)
+sinais_escala <- function(L, sel, f) {
+  s <- sign(L[sel, f])
+  s[s == 0] <- 1
+  s
+}
+
+alfa_por_fator <- function(R, L, corte, manual = NULL) {
+  comp <- composicao_escalas(L, corte, manual)
   fatores <- lapply(seq_len(ncol(L)), function(f) {
-    sel <- cls$codigo[cls$situacao != "sem_fator" & cls$principal == f]
+    sel <- names(comp)[comp == f]
     sel <- sel[order(-abs(L[sel, f]))]
-    sinais <- sign(L[sel, f])
+    sinais <- sinais_escala(L, sel, f)
     a <- alfa_padronizado(R, sel, sinais)
 
     # Domínio que mais aparece entre os itens do fator
@@ -426,9 +450,60 @@ alfa_por_fator <- function(R, L, corte) {
     w <- omega_fator(R, sel, sinais)
     list(fator = colnames(L)[f], itens = sel, invertidos = sel[sinais < 0],
          alfa = a, classe = classificar_alfa(a), omega = w,
-         dominio = dominio, qtd_dominio = qtd)
+         dominio = dominio, qtd_dominio = qtd,
+         manuais = intersect(sel, names(manual)),
+         carga_baixa = sel[abs(L[sel, f]) < corte])
   })
-  list(fatores = fatores, fora = cls$codigo[cls$situacao == "sem_fator"])
+  list(fatores = fatores, fora = names(comp)[comp == 0], composicao = comp,
+       fora_manual = intersect(names(comp)[comp == 0], names(manual)))
+}
+
+# "Alfa se o item for excluído": para cada item que está numa escala, o alfa
+# que essa escala teria sem ele (e a diferença em relação ao alfa atual).
+alfa_se_excluido <- function(R, L, alfas) {
+  linhas <- lapply(alfas$fatores, function(f) {
+    if (length(f$itens) < 3) return(NULL)   # sem ele sobraria 1 item: não há alfa
+    j <- match(f$fator, colnames(L))
+    do.call(rbind, lapply(f$itens, function(cod) {
+      resto <- setdiff(f$itens, cod)
+      a_sem <- alfa_padronizado(R, resto, sinais_escala(L, resto, j))
+      data.frame(codigo = cod, fator = f$fator, alfa = f$alfa, alfa_sem = a_sem,
+                 delta = a_sem - f$alfa, stringsAsFactors = FALSE)
+    }))
+  })
+  do.call(rbind, linhas)
+}
+
+# --- Diagnóstico de cada item (aba 0) -----------------------------------
+# Junta, para cada item incluído, os sinais que merecem investigação.
+# São SINAIS PARA INVESTIGAR, não ordens de exclusão.
+diagnosticar_itens <- function(R, kmo, afe, alfas, corte) {
+  L <- afe$L
+  cls <- classificar_itens(L, corte)
+  ase <- alfa_se_excluido(R, L, alfas)
+  do.call(rbind, lapply(seq_len(nrow(L)), function(i) {
+    cod <- rownames(L)[i]
+    msa <- kmo$itens$msa[match(cod, kmo$itens$codigo)]
+    h2 <- afe$h2[[cod]]
+    linha_ase <- if (!is.null(ase)) ase[ase$codigo == cod, ] else NULL
+    delta <- if (!is.null(linha_ase) && nrow(linha_ase) == 1) linha_ase$delta else NA_real_
+    sinais <- c(
+      if (!is.na(msa) && msa < 0.5) "KMO do item baixo (< 0,50)"
+      else if (!is.na(msa) && msa < 0.6) "KMO do item fraco (< 0,60)",
+      if (h2 >= 0.995) "caso de Heywood (h² ≥ 1)"
+      else if (h2 < 0.2) "h² baixa (< 0,20)",
+      switch(cls$situacao[i], sem_fator = "nenhuma carga forte", cruzada = "carga cruzada", NULL),
+      if (!is.na(delta) && delta > 0.01) "o alfa da escala subiria sem ele"
+    )
+    data.frame(codigo = cod, msa = msa, h2 = h2,
+               fator = colnames(L)[cls$principal[i]], carga = cls$carga[i],
+               situacao = cls$situacao[i],
+               escala = alfas$composicao[[cod]],
+               alfa_sem = if (!is.null(linha_ase) && nrow(linha_ase) == 1) linha_ase$alfa_sem else NA_real_,
+               delta = delta,
+               sinais = paste(sinais, collapse = "|"),
+               stringsAsFactors = FALSE)
+  }))
 }
 
 # --- 9. Ajuste conforme o número de fatores ----------------------------
@@ -455,8 +530,11 @@ comparar_solucoes <- function(guardada, atual, corte) {
   cg <- classificar_itens(guardada$L, corte)
   ca <- classificar_itens(atual$L, corte)
 
-  # Para cada fator atual, o fator guardado mais parecido
-  cong <- psych::factor.congruence(atual$L, guardada$L)
+  # Para cada fator atual, o fator guardado mais parecido. As duas soluções
+  # podem ter itens diferentes (se algum foi excluído): comparamos nos itens
+  # que estão nas duas.
+  comuns <- intersect(rownames(atual$L), rownames(guardada$L))
+  cong <- psych::factor.congruence(atual$L[comuns, , drop = FALSE], guardada$L[comuns, , drop = FALSE])
   pares <- data.frame(
     atual = colnames(atual$L),
     guardada = colnames(guardada$L)[apply(abs(cong), 1, which.max)],
@@ -464,19 +542,25 @@ comparar_solucoes <- function(guardada, atual, corte) {
     stringsAsFactors = FALSE
   )
 
+  # Uma linha por item (os 25), dizendo se está em cada solução
+  todos <- itens$codigo
+  pega <- function(v, nomes) unname(v[match(todos, nomes)])
   itens_cmp <- data.frame(
-    codigo = rownames(atual$L),
-    h2_guardada = guardada$h2[rownames(atual$L)],
-    h2_atual = atual$h2,
-    fator_guardada = colnames(guardada$L)[cg$principal],
-    carga_guardada = cg$carga, situacao_guardada = cg$situacao,
-    fator_atual = colnames(atual$L)[ca$principal],
-    carga_atual = ca$carga, situacao_atual = ca$situacao,
+    codigo = todos,
+    na_guardada = todos %in% rownames(guardada$L),
+    na_atual = todos %in% rownames(atual$L),
+    h2_guardada = pega(guardada$h2, names(guardada$h2)),
+    h2_atual = pega(atual$h2, names(atual$h2)),
+    fator_guardada = pega(colnames(guardada$L)[cg$principal], cg$codigo),
+    carga_guardada = pega(cg$carga, cg$codigo), situacao_guardada = pega(cg$situacao, cg$codigo),
+    fator_atual = pega(colnames(atual$L)[ca$principal], ca$codigo),
+    carga_atual = pega(ca$carga, ca$codigo), situacao_atual = pega(ca$situacao, ca$codigo),
     stringsAsFactors = FALSE
   )
   # O item "mudou de fator"? Comparamos pelo par mais parecido.
-  equivalente <- setNames(pares$guardada, pares$atual)
-  itens_cmp$mudou <- equivalente[itens_cmp$fator_atual] != itens_cmp$fator_guardada
+  equivalente <- stats::setNames(pares$guardada, pares$atual)
+  itens_cmp$mudou <- itens_cmp$na_guardada & itens_cmp$na_atual &
+    equivalente[itens_cmp$fator_atual] != itens_cmp$fator_guardada
 
   contar <- function(cls) c(cruzadas = sum(cls$situacao == "cruzada"),
                             sem_fator = sum(cls$situacao == "sem_fator"))
