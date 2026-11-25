@@ -180,7 +180,7 @@ grafico_ajuste_k <- function(ak, k_atual, k_sugerido) {
       graphics::abline(v = k_sugerido, col = "#eb6834", lwd = 1.5, lty = 2)
       graphics::mtext("paralela", side = 3, at = k_sugerido, line = 0.2, cex = 0.8, col = "#eb6834")
     }
-    graphics::axis(1, at = ak$k, col = EIXO, tck = -0.02, cex.axis = 0.9)
+    graphics::axis(1, at = ak$k, col = EIXO, tck = -0.02, cex.axis = 0.85, gap.axis = 0)
     marcas <- pretty(ylim)
     graphics::axis(2, at = marcas, labels = formato(marcas), col = EIXO, tck = -0.02, cex.axis = 0.9)
     graphics::lines(ak$k, y, col = azul, lwd = 2)
