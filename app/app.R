@@ -823,31 +823,40 @@ server <- function(input, output, session) {
   # =====================================================================
   # Aba 3
   # =====================================================================
+  # Caixas claras, com texto escuro (boa leitura); a cor da borda e do ícone
+  # mostra se o resultado é adequado (azul) ou um problema (vermelho).
+  caixa_clara <- function(ok, icone, ...) {
+    cor <- if (ok) "#2a78d6" else "#d03b3b"
+    value_box(
+      ...,
+      showcase = icon(icone, style = sprintf("color:%s;", cor)),
+      theme = value_box_theme(bg = if (ok) "#eef4fc" else "#fbeeee", fg = "#1f1f1f"),
+      style = sprintf("border-left: 6px solid %s;", cor)
+    )
+  }
+  nota_caixa <- function(...) p(class = "small mb-0", style = "color:#52514e;", ...)
+
   output$caixa_kmo <- renderUI({
     k <- kmo()
-    value_box(
+    caixa_clara(
+      k$geral >= 0.6, "gauge-high",
       title = "KMO geral (Kaiser-Meyer-Olkin)",
       value = fmt(k$geral, 2),
-      p(strong(paste0("Classificação: ", k$classe, "."))),
-      p(class = "small", k$texto_kmo),
-      p(class = "small text-muted",
-        "Referência: ≥ 0,90 maravilhoso; 0,80 meritório; 0,70 mediano; 0,60 medíocre; 0,50 miserável; < 0,50 inaceitável."),
-      showcase = icon("gauge-high"),
-      theme = if (k$geral >= 0.6) "primary" else "danger"
+      p(class = "mb-1", strong(paste0("Classificação: ", k$classe, "."))),
+      p(class = "mb-2", k$texto_kmo),
+      nota_caixa("Referência: ≥ 0,90 maravilhoso; 0,80 meritório; 0,70 mediano; 0,60 medíocre; 0,50 miserável; < 0,50 inaceitável.")
     )
   })
 
   output$caixa_bartlett <- renderUI({
     k <- kmo()
-    value_box(
+    caixa_clara(
+      k$p < 0.05, "circle-nodes",
       title = "Teste de esfericidade de Bartlett",
       value = paste0("p ", if (k$p < 0.001) "< 0,001" else paste0("= ", fmt(k$p, 3))),
-      p(sprintf("χ² = %s; gl = %s", fmt(k$qui2, 1), fmt_int(k$gl))),
-      p(class = "small", k$texto_bartlett),
-      p(class = "small text-muted",
-        "Atenção: com amostras grandes, esse teste quase sempre dá significativo. Ele é um requisito mínimo, não uma prova de que há bons fatores."),
-      showcase = icon("circle-nodes"),
-      theme = if (k$p < 0.05) "primary" else "danger"
+      p(class = "mb-1", strong(sprintf("χ² = %s; gl = %s", fmt(k$qui2, 1), fmt_int(k$gl)))),
+      p(class = "mb-2", k$texto_bartlett),
+      nota_caixa("Atenção: com amostras grandes, esse teste quase sempre dá significativo. Ele é um requisito mínimo, não uma prova de que há bons fatores.")
     )
   })
 
