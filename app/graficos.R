@@ -242,7 +242,7 @@ explicacao_policorica <- function(cp) {
     htmltools::tags$ul(
       htmltools::tags$li("o app usa ", strong("Pearson"), " como padrão — a estrutura de fatores é a mesma, e as ideias da AFE são as mesmas;"),
       htmltools::tags$li("a ", strong("policórica"), " fica disponível nas duas amostras que já vêm calculadas: a ", strong("completa"),
-                         " e a ", strong("inicial"), " (1.000 pessoas, sorteio nº 1). Use-as para comparar (a missão 13 faz isso).")),
+                         " (a que o app usa ao abrir) e uma de 1.000 pessoas (sorteio nº 1). Use-as para comparar — a missão “Pearson ou policórica?” faz isso.")),
     p(class = "small text-muted mb-0",
       "No R, a policórica é calculada com psych::polychoric(dados) ou diretamente na análise fatorial com psych::fa(dados, cor = \"poly\").")
   )

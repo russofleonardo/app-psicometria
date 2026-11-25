@@ -32,25 +32,25 @@ N_MAX_SLIDER <- ceiling(N_TOTAL / 50) * 50
 # ---------------------------------------------------------------------
 
 # Barra lateral: todos os controles da análise.
+# Os controles seguem a ordem em que as decisões são tomadas numa AFE:
+# primeiro os dados, depois a extração dos fatores, por fim a interpretação.
+titulo_bloco <- function(texto) div(
+  class = "small text-uppercase fw-bold mt-1 mb-n1",
+  style = "letter-spacing:.05em;color:#2c3e50;border-bottom:1px solid #d9dde3;padding-bottom:.15rem;", texto)
+
 barra_lateral <- sidebar(
   width = 280,
   title = "Controles da análise",
 
-  sliderInput("nfatores", "Número de fatores",
-              min = 1, max = 10, value = 2, step = 1),
+  # ---------------- 1. Dados
+  titulo_bloco("1. Dados"),
+  sliderInput("n_amostra", "Tamanho da amostra",
+              min = 50, max = N_MAX_SLIDER, value = N_MAX_SLIDER, step = 50, ticks = FALSE, sep = "."),
+  div(class = "small text-muted", style = "margin-top:-.6rem;",
+      textOutput("resumo_amostra", inline = TRUE)),
 
-  selectInput("extracao", termo("extracao", "Método de extração"),
-              choices = c("Resíduos mínimos (minres)" = "minres",
-                          "Máxima verossimilhança (ml)" = "ml",
-                          "Eixos principais (pa)" = "pa"),
-              selected = "minres"),
-
-  selectInput("rotacao", termo("rotacao", "Rotação"),
-              choices = c("Nenhuma (none)" = "none",
-                          "Varimax (ortogonal)" = "varimax",
-                          "Oblimin (oblíqua)" = "oblimin",
-                          "Promax (oblíqua)" = "promax"),
-              selected = "varimax"),
+  actionButton("sortear", "Sortear outra amostra",
+               icon = icon("shuffle"), class = "btn-sm btn-outline-primary"),
 
   radioButtons("correlacao", "Tipo de correlação",
                choices = c("Pearson" = "pearson",
@@ -65,24 +65,40 @@ barra_lateral <- sidebar(
       var el = $('input[name=correlacao][value=policorica]');
       el.prop('disabled', !ok);
       el.closest('label').css('opacity', ok ? 1 : 0.45)
-        .attr('title', ok ? '' : 'Disponível só com a amostra completa ou a inicial (1.000 pessoas, sorteio nº 1)');
+        .attr('title', ok ? '' : 'Disponível só com a amostra completa (ou com 1.000 pessoas, sorteio nº 1)');
     });
   ")),
 
-  sliderInput("corte", termo("ponto_corte", "Ponto de corte das cargas"),
-              min = 0.10, max = 0.60, value = 0.30, step = 0.05, ticks = FALSE),
-
-  sliderInput("n_amostra", "Tamanho da amostra",
-              min = 50, max = N_MAX_SLIDER, value = 1000, step = 50, ticks = FALSE),
-  div(class = "small text-muted", style = "margin-top:-.6rem;",
-      textOutput("resumo_amostra", inline = TRUE)),
-
-  actionButton("sortear", "Sortear outra amostra",
-               icon = icon("shuffle"), class = "btn-outline-primary"),
-
-  div(class = "small mt-2",
+  div(class = "small",
       uiOutput("resumo_itens_lateral"),
       actionLink("editar_itens", "Escolher os itens (aba 1)", class = "small")),
+
+  # ---------------- 2. Extração
+  titulo_bloco("2. Extração dos fatores"),
+  sliderInput("nfatores", "Número de fatores",
+              min = 1, max = 10, value = 2, step = 1),
+
+  selectInput("extracao", termo("extracao", "Método de extração"),
+              choices = c("Resíduos mínimos (minres)" = "minres",
+                          "Máxima verossimilhança (ml)" = "ml",
+                          "Eixos principais (pa)" = "pa"),
+              selected = "minres"),
+
+  # ---------------- 3. Interpretação
+  titulo_bloco("3. Interpretação"),
+  selectInput("rotacao", termo("rotacao", "Rotação"),
+              choices = c("Nenhuma (none)" = "none",
+                          "Varimax (ortogonal)" = "varimax",
+                          "Oblimin (oblíqua)" = "oblimin",
+                          "Promax (oblíqua)" = "promax"),
+              selected = "varimax"),
+
+  # O controle deslizante escreve o número com ponto; a linha abaixo mostra
+  # o valor com vírgula, como no resto do app.
+  sliderInput("corte", termo("ponto_corte", "Ponto de corte das cargas"),
+              min = 0.10, max = 0.60, value = 0.30, step = 0.05, ticks = FALSE),
+  div(class = "small text-muted", style = "margin-top:-.6rem;",
+      textOutput("corte_atual", inline = TRUE)),
 
   # Autoria e licença (sempre visível)
   div(class = "small text-muted mt-4 pt-2 border-top",
@@ -288,7 +304,7 @@ aba_itens <- nav_panel(
         tags$li(strong("Não “decore” a amostra."), " Excluir itens até o ajuste ficar bom pode só aproveitar o acaso desta amostra. Sorteie outra e veja se a decisão se sustenta."),
         tags$li(strong("Cada item retirado estreita o construto."), " Uma escala com menos itens pode deixar de medir partes importantes do traço."),
         tags$li(strong("Cada fator precisa de pelo menos 3 itens"), " para ficar bem definido."),
-        tags$li(strong("Cuidado com os invertidos:"), " eles costumam ter cargas menores por um efeito de método. Tirá-los pode melhorar os números e piorar o instrumento (veja a missão 17)."),
+        tags$li(strong("Cuidado com os invertidos:"), " eles costumam ter cargas menores por um efeito de método. Tirá-los pode melhorar os números e piorar o instrumento (veja a missão “A armadilha dos itens invertidos”)."),
         tags$li(strong("“Alfa sem o item” não decide sozinho:"), " um alfa maior não quer dizer uma escala melhor."),
         tags$li(strong("Registre e relate"), " cada decisão — o diário abaixo ajuda nisso."))
     )
@@ -336,7 +352,7 @@ aba_kmo <- nav_panel(
   card(
     card_header("KMO de cada item"),
     p(class = "small text-muted",
-      "Um item com KMO baixo (abaixo de 0,50) compartilha pouco com os demais e é candidato a sair da análise."),
+      "Um item com KMO baixo (abaixo de 0,50) compartilha pouco com os demais e merece atenção — mas isso, sozinho, não basta para tirá-lo da análise (veja “Quando excluir um item?”, na aba 1)."),
     uiOutput("tabela_msa")
   )
 )
@@ -464,7 +480,7 @@ aba_cargas <- nav_panel(
           tags$li(strong("h² (comunalidade):"), " quanto da variação das respostas a um item os fatores conseguem explicar. ",
                   "Valores muito baixos (perto de 0,20 ou menos) indicam um item que pouco tem a ver com os fatores. ",
                   "Um valor igual ou maior que 1 é impossível na teoria: é o chamado ", termo("heywood", em("caso de Heywood")), "."),
-          tags$li(strong("Autovalor (sem rotação):"), " a soma das cargas ao quadrado de um fator; mostra o “tamanho” do fator."),
+          tags$li(termo("autovalor", strong("Autovalor (sem rotação):")), " a soma das cargas ao quadrado de um fator; mostra o “tamanho” do fator."),
           tags$li(strong("Soma das cargas² — SQ (com rotação):"), " depois de rotacionar, a soma das cargas ao quadrado ",
                   em("não é mais"), " um autovalor: a rotação redistribui a variância entre os fatores. Por isso o nome muda. ",
                   "O total explicado pelos fatores juntos continua o mesmo."),
@@ -550,11 +566,11 @@ aba_fatores <- nav_panel(
     uiOutput("conteudo_phi")
   ),
   card(
-    card_header("Consistência interna (alfa e ômega) de cada fator"),
+    card_header("Consistência interna (alfa e ômega) de cada escala"),
     p("O ", termo("alfa", strong("alfa de Cronbach")), " indica se os itens de um fator “contam a mesma história”: ",
-      "se as respostas a eles costumam andar juntas. Vai de 0 a 1; a partir de 0,70 costuma ser considerado aceitável."),
+      "se as respostas a eles costumam andar juntas. Costuma ir de 0 a 1; a partir de 0,70 costuma ser considerado aceitável."),
     p(class = "small text-muted",
-      "Cada item entra no fator em que tem a maior carga (se ela passar do ponto de corte). ",
+      "Cada item entra na escala do fator em que tem a maior carga (se ela passar do ponto de corte) — ou na escala que você escolheu para ele na aba 1. ",
       "Itens com carga negativa — marcados com “(inv.)” — são invertidos antes do cálculo. ",
       "A coluna “Parece medir” mostra o domínio que mais aparece entre os itens do fator."),
     uiOutput("tabela_alfa"),
@@ -731,6 +747,8 @@ server <- function(input, output, session) {
 
   amostra <- reactive(sortear_amostra(n_amostra(), semente()))
 
+  output$corte_atual <- renderText(paste0("Corte atual: ", fmt(input$corte, 2)))
+
   output$resumo_amostra <- renderText({
     n <- n_amostra()
     if (n >= N_TOTAL) sprintf("Usando todas as %s pessoas.", fmt_int(N_TOTAL))
@@ -757,7 +775,7 @@ server <- function(input, output, session) {
     if (!ok && identical(isolate(input$correlacao), "policorica")) {
       updateRadioButtons(session, "correlacao", selected = "pearson")
       showNotification(
-        "A correlação policórica só está disponível com a amostra completa ou a inicial (1.000 pessoas, sorteio nº 1). O app voltou para Pearson.",
+        "A correlação policórica só está disponível com a amostra completa (ou com 1.000 pessoas, sorteio nº 1). O app voltou para Pearson.",
         type = "warning", duration = 8)
     }
   })
@@ -765,7 +783,7 @@ server <- function(input, output, session) {
   output$nota_correlacao <- renderUI({
     if (tem_policorica()) span(class = "small text-muted", "Policórica disponível para esta amostra.")
     else span(class = "small text-muted",
-              "Policórica: só com a amostra completa ou a inicial (1.000 pessoas, sorteio nº 1).")
+              "Policórica: só com a amostra completa (ou com 1.000 pessoas, sorteio nº 1).")
   })
 
   # --- Explicação "Pearson ou policórica?"
@@ -1396,7 +1414,7 @@ server <- function(input, output, session) {
         paste(vapply(al$fatores[pequenas], `[[`, "", "fator"), collapse = ", ")))))
     }
     if (length(intersect(excluidos(), INVERTIDOS)) >= 3) avisos <- c(avisos, list(selo("atencao",
-      "Você excluiu vários itens invertidos. Cuidado: os números podem melhorar enquanto o instrumento piora (veja a missão 17).")))
+      "Você excluiu vários itens invertidos. Cuidado: os números podem melhorar enquanto o instrumento piora (veja a missão “A armadilha dos itens invertidos”).")))
     if (length(avisos) == 0) return(NULL)
     div(class = "small mb-2", lapply(avisos, div))
   })

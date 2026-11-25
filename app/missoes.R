@@ -77,7 +77,7 @@ MISSOES <- list(
     nivel = "Básico", aba = "correlacoes",
     objetivo = "Descobrir, só olhando o mapa de calor, se os itens formam grupos — a ideia que está por trás de toda a análise fatorial.",
     passos = c(
-      "Na barra lateral, leve o “Tamanho da amostra” até o máximo, para usar todas as pessoas.",
+      "Confira, na barra lateral, que o “Tamanho da amostra” está no máximo (todas as pessoas — é assim que o app abre).",
       "Abra a aba 2 e observe o mapa de calor: os itens estão agrupados por domínio (A, C, E, N, O).",
       "Procure os “blocos” de cor forte ao longo da diagonal. Quantos você encontra? Qual é o bloco mais forte?"
     ),
@@ -110,7 +110,6 @@ MISSOES <- list(
     nivel = "Básico", aba = "kmo",
     objetivo = "Usar o KMO e o teste de Bartlett para decidir se vale a pena procurar fatores nestes dados.",
     passos = c(
-      "Mantenha a amostra completa (tamanho da amostra no máximo).",
       "Na aba 3, leia o KMO geral e a sua classificação.",
       "Leia o resultado do teste de Bartlett.",
       "Na tabela de baixo, encontre o item com o MENOR KMO."
@@ -284,7 +283,7 @@ MISSOES <- list(
     objetivo = "Avaliar a consistência interna (alfa e ômega) de cada fator.",
     passos = c(
       "Com 5 fatores, rotação oblimin e ponto de corte 0,30, abra a aba 7.",
-      "Leia o alfa, o ômega e a classificação de cada fator.",
+      "Leia o alfa, o ômega e a classificação de cada fator (os nomes que você deu aos fatores na missão 11 aparecem na tabela).",
       "Qual fator tem o alfa mais baixo? Quais itens dele aparecem marcados com “(inv.)”?",
       "Compare o alfa com o ômega de cada fator: eles ficam parecidos ou diferentes?"
     ),
@@ -302,7 +301,7 @@ MISSOES <- list(
     nivel = "Avançado", aba = "cargas",
     objetivo = "Comparar os dois tipos de correlação e entender quando usar cada um.",
     passos = c(
-      "Leve o tamanho da amostra ao máximo (a policórica da amostra completa já vem calculada e aparece na hora).",
+      "Confira que o tamanho da amostra está no máximo (a policórica da amostra completa já vem calculada e aparece na hora).",
       "Com 5 fatores e correlação de Pearson, clique em “Guardar esta solução para comparar” na aba 5.",
       "Troque para correlação policórica.",
       "Abra a sub-aba “Comparar”: as comunalidades (h²) ficaram maiores ou menores? E os índices de ajuste? Os fatores continuam os mesmos?",

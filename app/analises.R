@@ -621,8 +621,9 @@ texto_relatorio <- function(d) {
             fmt_int(d$n), d$sorteio, fmt_int(N_TOTAL))
   }
   instrumento <- sprintf(
-    "Foram usados %s dos 25 itens do International Personality Item Pool (IPIP) que avaliam os Cinco Grandes Fatores da personalidade (Amabilidade, Conscienciosidade, Extroversão, Neuroticismo e Abertura), respondidos numa escala de 1 (discordo totalmente) a 6 (concordo totalmente).%s",
-    n_itens, if (length(d$excluidos) > 0) sprintf(" Os itens %s foram excluídos da análise (ver Decisões sobre os itens).", paste(d$excluidos, collapse = ", ")) else "")
+    "Foram usados %s do International Personality Item Pool (IPIP) que avaliam os Cinco Grandes Fatores da personalidade (Amabilidade, Conscienciosidade, Extroversão, Neuroticismo e Abertura), respondidos numa escala de 1 (discordo totalmente) a 6 (concordo totalmente).%s",
+    if (n_itens == 25) "os 25 itens" else sprintf("%d dos 25 itens", n_itens),
+    if (length(d$excluidos) > 0) sprintf(" Os itens %s foram excluídos da análise (ver Decisões sobre os itens).", paste(d$excluidos, collapse = ", ")) else "")
   analise <- sprintf(
     "Foi realizada uma análise fatorial exploratória com base na matriz de correlações %s, com extração por %s e %s. O número de fatores foi avaliado pela análise paralela (%d conjuntos de dados aleatórios, comparação com o percentil %d), pelo critério de Kaiser e pelos índices de ajuste. Cargas a partir de %s foram consideradas relevantes. A consistência interna foi estimada pelos coeficientes alfa e ômega. As análises foram feitas no Laboratório de Psicometria – Análise Fatorial Exploratória (Russo, 2026), que usa o pacote psych do R.",
     if (d$correlacao == "policorica") "policóricas" else "de Pearson",
