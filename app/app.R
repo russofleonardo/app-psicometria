@@ -18,6 +18,7 @@ options(mc.cores = 1)   # no navegador não há processamento paralelo
 source("dados.R",    encoding = "UTF-8")
 source("analises.R", encoding = "UTF-8")
 source("graficos.R", encoding = "UTF-8")
+source("missoes.R",  encoding = "UTF-8")
 
 # O controle deslizante anda de 50 em 50; o último passo (2.450)
 # significa "todas as pessoas" (2.436).
@@ -227,11 +228,34 @@ abas <- navset_card_tab(
 # Em telas muito largas ele fica à direita das abas; em telas menores
 # (como a de um notebook) ele vai para cima, ocupando a largura toda,
 # para não espremer os gráficos.
+# Quando muda algum controle, só a parte "Conferência" é redesenhada:
+# assim o comentário da reflexão, se estiver aberto, não fecha sozinho.
 painel_missoes <- card(
-  class = "painel-missoes",
+  class = "painel-missoes", fill = FALSE,
   card_header("Missões guiadas"),
-  p("As missões vão aparecer aqui, uma de cada vez.")
+  card_body(
+    fillable = FALSE,
+    uiOutput("missoes_topo"),
+    uiOutput("missao_texto"),
+    uiOutput("missao_conferencia"),
+    uiOutput("missao_reflexao"),
+    div(class = "mt-3 text-end",
+        actionLink("recomecar_missoes", "Recomeçar as missões", class = "small text-muted"))
+  )
 )
+
+# O progresso das missões fica guardado no navegador (localStorage), para
+# não se perder ao recarregar a página — funciona também no Shinylive.
+script_missoes <- tags$script(HTML("
+  $(document).on('shiny:connected', function() {
+    var salvo = null;
+    try { salvo = JSON.parse(localStorage.getItem('afe_missoes')); } catch (e) {}
+    Shiny.setInputValue('missoes_salvas', salvo || {concluidas: [], atual: 1});
+  });
+  Shiny.addCustomMessageHandler('salvar_missoes', function(x) {
+    try { localStorage.setItem('afe_missoes', JSON.stringify(x)); } catch (e) {}
+  });
+"))
 
 ui <- page_sidebar(
   title = "Laboratório de Análise Fatorial Exploratória",
@@ -245,10 +269,19 @@ ui <- page_sidebar(
   #  * abaixo de 1400 px de largura, as missões sobem para cima das abas.
   tags$style(HTML("
     .nav-tabs .nav-link { padding: .5rem .7rem; }
+    .botao-missao { min-width: 2.3rem; }
+    .painel-missoes { height: auto !important; }
+    .painel-missoes .card-body { overflow-y: auto; max-height: 55vh; }
     @media (max-width: 1399.98px) {
       .bslib-grid > :has(> .painel-missoes) { order: -1; }
     }
+    /* Em telas largas, o painel acompanha a rolagem da página */
+    @media (min-width: 1400px) {
+      .painel-missoes { position: sticky; top: 1rem; }
+      .painel-missoes .card-body { max-height: calc(100vh - 7rem); }
+    }
   ")),
+  script_missoes,
   layout_columns(
     col_widths = breakpoints(sm = 12, xxl = c(8, 4)),
     abas,
@@ -585,6 +618,90 @@ server <- function(input, output, session) {
       "O alfa é calculado a partir da matriz de correlação em uso (alfa padronizado)",
       if (input$correlacao == "policorica") "; como ela é policórica, este é o chamado alfa ordinal" else "",
       ". Fatores com poucos itens tendem a ter alfa mais baixo."))
+  })
+
+  # =====================================================================
+  # Missões guiadas
+  # =====================================================================
+  missao_atual <- reactiveVal(1L)
+  concluidas <- reactiveVal(integer(0))
+
+  # Guarda o progresso no navegador
+  salvar_missoes <- function() {
+    session$sendCustomMessage("salvar_missoes",
+      list(concluidas = as.list(concluidas()), atual = missao_atual()))
+  }
+
+  # Ao abrir o app, recupera o progresso guardado (se houver)
+  observeEvent(input$missoes_salvas, {
+    s <- input$missoes_salvas
+    feitas <- suppressWarnings(as.integer(unlist(s$concluidas)))
+    concluidas(sort(unique(feitas[!is.na(feitas) & feitas %in% seq_len(N_MISSOES)])))
+    a <- suppressWarnings(as.integer(s$atual))
+    if (length(a) == 1 && !is.na(a) && a >= 1 && a <= N_MISSOES) missao_atual(a)
+  }, once = TRUE)
+
+  # Trocar de missão (botões numerados e "Próxima missão")
+  observeEvent(input$missao_escolhida, {
+    k <- as.integer(input$missao_escolhida)
+    if (!is.na(k) && k >= 1 && k <= N_MISSOES) {
+      missao_atual(k)
+      salvar_missoes()
+    }
+  })
+
+  # "Concluí esta missão": o app confere de novo antes de aceitar
+  observeEvent(input$missao_concluida, {
+    k <- as.integer(input$missao_concluida)
+    if (!is.na(k) && all(conferir_missao(MISSOES[[k]], input))) {
+      concluidas(sort(unique(c(concluidas(), k))))
+      salvar_missoes()
+    }
+  })
+
+  observeEvent(input$ir_para_aba, nav_select("aba", input$ir_para_aba))
+
+  observeEvent(input$recomecar_missoes, {
+    concluidas(integer(0))
+    missao_atual(1L)
+    salvar_missoes()
+  })
+
+  output$missoes_topo <- renderUI(tagList(
+    progresso_missoes(concluidas()),
+    botoes_missoes(missao_atual(), concluidas())
+  ))
+
+  output$missao_texto <- renderUI(conteudo_missao(missao_atual()))
+
+  output$missao_reflexao <- renderUI(reflexao_missao(missao_atual()))
+
+  output$missao_conferencia <- renderUI({
+    k <- missao_atual()
+    m <- MISSOES[[k]]
+    feita <- k %in% concluidas()
+    ok <- conferir_missao(m, input)
+
+    botao <- if (feita) {
+      div(class = "d-flex flex-wrap align-items-center gap-2",
+          span(class = "fw-bold", style = "color:#0ca30c;", "✔︎ Missão concluída!"),
+          if (k < N_MISSOES) tags$button(
+            type = "button", class = "btn btn-sm btn-primary",
+            onclick = sprintf("Shiny.setInputValue('missao_escolhida', %d, {priority: 'event'})", k + 1),
+            "Próxima missão →")
+          else span(class = "small", "Você concluiu todas as missões. Parabéns!"))
+    } else {
+      tagList(
+        tags$button(
+          type = "button", class = "btn btn-sm btn-success",
+          disabled = if (!all(ok)) NA,
+          onclick = sprintf("Shiny.setInputValue('missao_concluida', %d, {priority: 'event'})", k),
+          "✔︎ Concluí esta missão"),
+        if (!all(ok)) div(class = "small text-muted mt-1",
+                           "O botão é liberado quando todos os itens da conferência estiverem marcados.")
+      )
+    }
+    tagList(lista_conferencia(m, ok), botao)
   })
 }
 

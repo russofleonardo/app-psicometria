@@ -372,6 +372,99 @@ tabela_phi <- function(Phi) {
   )
 }
 
+# =====================================================================
+# 5. PEÇAS DAS MISSÕES GUIADAS
+# =====================================================================
+CORES_NIVEL <- c("Básico" = "#1baf7a", "Intermediário" = "#2a78d6",
+                 "Avançado" = "#6250d6", "Desafio" = "#d03b3b")
+
+selo_nivel <- function(nivel) htmltools::tags$span(
+  class = "badge rounded-pill", style = sprintf("background:%s;", CORES_NIVEL[[nivel]]), nivel)
+
+# Fileira de botões 1, 2, 3... (verde = concluída; cheio = missão atual)
+botoes_missoes <- function(atual, concluidas) {
+  htmltools::div(
+    class = "d-flex flex-wrap gap-1 mb-2",
+    lapply(seq_len(N_MISSOES), function(k) {
+      m <- MISSOES[[k]]
+      feita <- k %in% concluidas
+      classe <- if (k == atual && feita) "btn-success"
+                else if (k == atual) "btn-primary"
+                else if (feita) "btn-outline-success"
+                else "btn-outline-secondary"
+      htmltools::tags$button(
+        type = "button",
+        class = paste("btn btn-sm botao-missao", classe),
+        title = sprintf("Missão %d (%s): %s%s", k, m$nivel, m$titulo, if (feita) " — concluída" else ""),
+        onclick = sprintf("Shiny.setInputValue('missao_escolhida', %d, {priority: 'event'})", k),
+        if (feita) paste0(k, " ✔︎") else as.character(k)
+      )
+    })
+  )
+}
+
+# Barra de progresso
+progresso_missoes <- function(concluidas) {
+  n <- length(concluidas)
+  htmltools::div(
+    class = "mb-2",
+    htmltools::div(class = "small text-muted mb-1",
+                   sprintf("%d de %d missões concluídas", n, N_MISSOES)),
+    htmltools::div(
+      class = "progress", style = "height:6px;",
+      htmltools::div(class = "progress-bar bg-success", role = "progressbar",
+                     style = sprintf("width:%.0f%%;", 100 * n / N_MISSOES)))
+  )
+}
+
+# Texto da missão (não depende dos controles, para não "piscar")
+conteudo_missao <- function(k) {
+  m <- MISSOES[[k]]
+  htmltools::tagList(
+    htmltools::div(
+      class = "d-flex flex-wrap align-items-center gap-2 mb-2",
+      selo_nivel(m$nivel),
+      htmltools::tags$strong(sprintf("Missão %d: %s", k, m$titulo))
+    ),
+    htmltools::tags$button(
+      type = "button", class = "btn btn-sm btn-outline-primary mb-2",
+      onclick = sprintf("Shiny.setInputValue('ir_para_aba', '%s', {priority: 'event'})", m$aba),
+      paste0("Ir para a aba “", NOMES_ABAS[[m$aba]], "” →")),
+    htmltools::p(class = "mb-2", htmltools::strong("Objetivo: "), m$objetivo),
+    htmltools::div(class = "fw-bold small text-uppercase text-muted", "O que fazer"),
+    htmltools::tags$ol(class = "ps-3 mb-2", lapply(m$passos, htmltools::tags$li))
+  )
+}
+
+# Lista de conferência (✔ cumprido / ○ falta)
+lista_conferencia <- function(m, ok) {
+  htmltools::tagList(
+    htmltools::div(class = "fw-bold small text-uppercase text-muted", "Conferência do app"),
+    htmltools::tags$ul(
+      class = "list-unstyled mb-2 small",
+      lapply(seq_along(m$condicoes), function(j) htmltools::tags$li(
+        if (ok[j]) htmltools::tags$span(style = "color:#0ca30c;font-weight:700;", "✔︎ ")
+        else htmltools::tags$span(style = sprintf("color:%s;font-weight:700;", TINTA_FRACA), "○ "),
+        htmltools::tags$span(class = if (!ok[j]) "text-muted", m$condicoes[[j]]$rotulo)
+      ))
+    )
+  )
+}
+
+# Pergunta de reflexão com o comentário escondido
+reflexao_missao <- function(k) {
+  m <- MISSOES[[k]]
+  htmltools::div(
+    class = "mt-3 p-2 rounded", style = "background:#f4f3ef;",
+    htmltools::div(class = "fw-bold small text-uppercase text-muted", "Para refletir"),
+    htmltools::p(class = "mb-1", m$reflexao),
+    htmltools::tags$details(
+      htmltools::tags$summary(class = "small", "Pense um pouco… e depois clique para ver o comentário"),
+      htmltools::p(class = "small mt-2 mb-0", m$comentario)
+    )
+  )
+}
+
 # --- Alfa de cada fator (aba 6) -----------------------------------------
 tabela_alfa <- function(alfas) {
   linhas <- lapply(alfas$fatores, function(f) {
