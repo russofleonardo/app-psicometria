@@ -1,0 +1,3 @@
+# A pasta docs/ é a versão para o navegador (Shinylive), gerada automaticamente.
+# O Git não deve alterar nada nesses arquivos (nem as quebras de linha).
+docs/** -text
