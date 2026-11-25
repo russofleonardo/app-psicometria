@@ -637,7 +637,9 @@ script_missoes <- tags$script(HTML("
 
 ui <- page_sidebar(
   title = "Laboratório de Psicometria – Análise Fatorial Exploratória",
-  theme = bs_theme(version = 5, bootswatch = "flatly"),
+  # Links em azul (o tema Flatly usa verde-água por padrão)
+  theme = bs_theme(version = 5, bootswatch = "flatly", "link-color" = "#2a78d6",
+                   "link-hover-color" = "#1f62b3"),
   sidebar = barra_lateral,
   # fillable = FALSE: a página rola normalmente, em vez de espremer tudo
   # na altura da janela (em telas baixas, os gráficos sumiam).
@@ -647,6 +649,10 @@ ui <- page_sidebar(
   #  * abaixo de 1400 px de largura, as missões sobem para cima das abas.
   tags$style(HTML("
     .nav-tabs .nav-link { padding: .5rem .55rem; font-size: .97rem; }
+    /* Nomes das abas e sub-abas: azul-marinho; a aba aberta em grafite, destacada */
+    .nav-tabs .nav-link, .nav-underline .nav-link { color: #2c3e50; }
+    .nav-tabs .nav-link:hover, .nav-underline .nav-link:hover { color: #1a252f; text-decoration: underline; }
+    .nav-tabs .nav-link.active, .nav-underline .nav-link.active { color: #1f1f1f; font-weight: 600; }
     .botao-missao { min-width: 2.3rem; }
     .botao-recolher { border: 0; border-radius: 0; }
     .botao-recolher:hover { background: rgba(0,0,0,.04); }
