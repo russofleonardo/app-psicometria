@@ -29,7 +29,7 @@ N_MAX_SLIDER <- ceiling(N_TOTAL / 50) * 50
 
 # Barra lateral: todos os controles da análise.
 barra_lateral <- sidebar(
-  width = 300,
+  width = 280,
   title = "Controles da análise",
 
   sliderInput("nfatores", "Número de fatores",
@@ -54,10 +54,10 @@ barra_lateral <- sidebar(
                selected = "pearson", inline = TRUE),
 
   sliderInput("corte", "Ponto de corte das cargas",
-              min = 0.10, max = 0.60, value = 0.30, step = 0.05),
+              min = 0.10, max = 0.60, value = 0.30, step = 0.05, ticks = FALSE),
 
   sliderInput("n_amostra", "Tamanho da amostra",
-              min = 50, max = N_MAX_SLIDER, value = 1000, step = 50),
+              min = 50, max = N_MAX_SLIDER, value = 1000, step = 50, ticks = FALSE),
   div(class = "small text-muted", style = "margin-top:-.6rem;",
       textOutput("resumo_amostra", inline = TRUE)),
 
@@ -75,7 +75,8 @@ aba_correlacoes <- nav_panel(
   p(class = "text-muted small",
     "Os itens estão agrupados por domínio. Procure “blocos” de cor forte: são grupos de itens que andam juntos — a semente dos fatores."),
   legenda_dominios(),
-  checkboxInput("mostrar_numeros", "Mostrar os valores dentro dos quadradinhos", value = FALSE),
+  checkboxInput("mostrar_numeros", "Mostrar os valores dentro dos quadradinhos",
+                value = FALSE, width = "100%"),
   uiOutput("aviso_suavizada"),
   plotOutput("mapa_cor", height = "720px")
 )
@@ -86,8 +87,9 @@ aba_kmo <- nav_panel(
   p("Antes de procurar fatores, precisamos saber se os dados ", em("servem"),
     " para isso. Dois testes ajudam:"),
   uiOutput("aviso_suavizada2"),
+  # Lado a lado em telas largas; um embaixo do outro em telas estreitas.
   layout_columns(
-    col_widths = c(6, 6),
+    col_widths = breakpoints(sm = 12, lg = c(6, 6)),
     uiOutput("caixa_kmo"),
     uiOutput("caixa_bartlett")
   ),
@@ -132,7 +134,11 @@ abas <- navset_card_tab(
 )
 
 # Painel das missões guiadas (próximas etapas).
+# Em telas muito largas ele fica à direita das abas; em telas menores
+# (como a de um notebook) ele vai para cima, ocupando a largura toda,
+# para não espremer os gráficos.
 painel_missoes <- card(
+  class = "painel-missoes",
   card_header("Missões guiadas"),
   p("As missões vão aparecer aqui, uma de cada vez.")
 )
@@ -141,8 +147,20 @@ ui <- page_sidebar(
   title = "Laboratório de Análise Fatorial Exploratória",
   theme = bs_theme(version = 5, bootswatch = "flatly"),
   sidebar = barra_lateral,
+  # fillable = FALSE: a página rola normalmente, em vez de espremer tudo
+  # na altura da janela (em telas baixas, os gráficos sumiam).
+  fillable = FALSE,
+  # Ajustes para telas menores (notebooks):
+  #  * abas com menos espaço lateral, para caberem numa linha só;
+  #  * abaixo de 1400 px de largura, as missões sobem para cima das abas.
+  tags$style(HTML("
+    .nav-tabs .nav-link { padding: .5rem .7rem; }
+    @media (max-width: 1399.98px) {
+      .bslib-grid > :has(> .painel-missoes) { order: -1; }
+    }
+  ")),
   layout_columns(
-    col_widths = c(8, 4),
+    col_widths = breakpoints(sm = 12, xxl = c(8, 4)),
     abas,
     painel_missoes
   )
