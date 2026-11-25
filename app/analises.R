@@ -37,8 +37,55 @@ policorica_segura <- function(dados, correcao) {
   )
 }
 
-calcular_correlacao <- function(dados, tipo = c("pearson", "policorica")) {
+# Correlações policóricas JÁ CALCULADAS para as duas amostras mais usadas
+# (a completa e a inicial: 1.000 pessoas, sorteio 1). O cálculo é lento,
+# principalmente na versão do navegador; como os dados nunca mudam, o
+# resultado guardado é idêntico ao calculado na hora.
+# O arquivo é gerado por ferramentas/gerar_policoricas.R.
+POLICORICAS_PRONTAS <- if (file.exists("policoricas_prontas.rds")) readRDS("policoricas_prontas.rds") else list()
+
+chave_amostra <- function(n, semente) if (n >= N_TOTAL) "completa" else paste0("n", n, "_s", semente)
+
+policorica_disponivel <- function(n, semente) !is.null(POLICORICAS_PRONTAS[[chave_amostra(n, semente)]])
+
+# Compara Pearson e policórica na amostra completa (para a explicação
+# "Pearson ou policórica?"): mesma AFE (5 fatores, oblimin) nas duas.
+comparar_pearson_policorica <- function() {
+  pc <- POLICORICAS_PRONTAS[["completa"]]
+  if (is.null(pc)) return(NULL)
+  Rp <- stats::cor(dados_bfi)
+  Rpc <- pc$R
+  ap <- rodar_afe(Rp, N_TOTAL, 5, "minres", "oblimin")
+  apc <- rodar_afe(Rpc, N_TOTAL, 5, "minres", "oblimin")
+  if (!ap$ok || !apc$ok) return(NULL)
+
+  # O par de itens em que as duas correlações mais diferem
+  dif <- abs(Rpc) - abs(Rp)
+  dif[lower.tri(dif, diag = TRUE)] <- NA
+  ij <- which(dif == max(dif, na.rm = TRUE), arr.ind = TRUE)[1, ]
+
+  # O item mais assimétrico (respostas concentradas num extremo)
+  assimetria <- apply(dados_bfi, 2, function(x) mean((x - mean(x))^3) / stats::sd(x)^3)
+  item_assim <- names(which.max(abs(assimetria)))
+
+  cong <- psych::factor.congruence(apc$L, ap$L)
+  list(
+    h2_p = mean(ap$h2), h2_pc = mean(apc$h2),
+    total_p = ap$total, total_pc = apc$total,
+    carga_p = mean(abs(classificar_itens(ap$L, 0)$carga)),
+    carga_pc = mean(abs(classificar_itens(apc$L, 0)$carga)),
+    congruencia_min = min(apply(abs(cong), 1, max)),
+    par = colnames(Rp)[ij], r_p = Rp[ij[1], ij[2]], r_pc = Rpc[ij[1], ij[2]],
+    media_abs_r_p = mean(abs(Rp[upper.tri(Rp)])), media_abs_r_pc = mean(abs(Rpc[upper.tri(Rpc)])),
+    item_assim = item_assim, assimetria = assimetria[[item_assim]]
+  )
+}
+
+calcular_correlacao <- function(dados, tipo = c("pearson", "policorica"), chave = NULL) {
   tipo <- match.arg(tipo)
+  if (tipo == "policorica" && !is.null(chave) && !is.null(POLICORICAS_PRONTAS[[chave]])) {
+    return(POLICORICAS_PRONTAS[[chave]])
+  }
   falhou <- FALSE
   if (tipo == "pearson") {
     R <- stats::cor(dados)

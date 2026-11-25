@@ -245,13 +245,14 @@ MISSOES <- list(
     nivel = "Avançado", aba = "cargas",
     objetivo = "Comparar os dois tipos de correlação e entender quando usar cada um.",
     passos = c(
+      "Leve o tamanho da amostra ao máximo (a policórica da amostra completa já vem calculada e aparece na hora).",
       "Com 5 fatores e correlação de Pearson, clique em “Guardar esta solução para comparar” na aba 4.",
-      "Troque para correlação policórica (pode levar alguns segundos).",
+      "Troque para correlação policórica.",
       "Abra a sub-aba “Comparar”: as comunalidades (h²) ficaram maiores ou menores? E os índices de ajuste? Os fatores continuam os mesmos?",
       "Se quiser, veja também o alfa na aba 6 — com policórica ele vira o “alfa ordinal”."
     ),
     condicoes = list(
-      cond_aba("cargas"), cond_fatores(5),
+      cond_aba("cargas"), cond_fatores(5), cond_amostra_completa(),
       cond("Tipo de correlação: policórica", function(i) identical(i$correlacao, "policorica"))
     ),
     reflexao = "As respostas vão de 1 a 6 (discordo totalmente → concordo totalmente). Por que isso pode fazer a correlação de Pearson “subestimar” as relações?",

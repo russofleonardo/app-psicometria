@@ -53,6 +53,18 @@ barra_lateral <- sidebar(
                choices = c("Pearson" = "pearson",
                            "Policórica" = "policorica"),
                selected = "pearson", inline = TRUE),
+  div(style = "margin-top:-.6rem;",
+      uiOutput("nota_correlacao"),
+      actionLink("por_que_policorica", "Pearson ou policórica? Entenda", class = "small")),
+  # Desativa a opção "Policórica" quando a amostra não tem o cálculo pronto
+  tags$script(HTML("
+    Shiny.addCustomMessageHandler('policorica_disponivel', function(ok) {
+      var el = $('input[name=correlacao][value=policorica]');
+      el.prop('disabled', !ok);
+      el.closest('label').css('opacity', ok ? 1 : 0.45)
+        .attr('title', ok ? '' : 'Disponível só com a amostra completa ou a inicial (1.000 pessoas, sorteio nº 1)');
+    });
+  ")),
 
   sliderInput("corte", "Ponto de corte das cargas",
               min = 0.10, max = 0.60, value = 0.30, step = 0.05, ticks = FALSE),
@@ -483,14 +495,48 @@ server <- function(input, output, session) {
   # --- As correlações ----------------------------------------------------
   # Cada tipo é calculado só quando pedido e guardado até a amostra mudar.
   cor_pearson <- reactive(calcular_correlacao(amostra(), "pearson"))
-  cor_policorica <- reactive({
-    withProgress(message = "Calculando correlações policóricas…",
-                 detail = "isso pode levar alguns segundos.", value = 0.3, {
-      calcular_correlacao(amostra(), "policorica")
-    })
-  })
+  # A policórica é pesada demais para calcular no navegador a cada sorteio.
+  # Por isso ela só está disponível nas amostras já calculadas (completa e
+  # inicial); nas outras, o app usa Pearson.
+  tem_policorica <- reactive(policorica_disponivel(n_amostra(), semente()))
+  cor_policorica <- reactive(
+    calcular_correlacao(amostra(), "policorica", chave_amostra(n_amostra(), semente())))
   correlacao <- reactive({
-    if (input$correlacao == "policorica") cor_policorica() else cor_pearson()
+    if (identical(input$correlacao, "policorica") && tem_policorica()) cor_policorica() else cor_pearson()
+  })
+
+  observe({
+    ok <- tem_policorica()
+    session$sendCustomMessage("policorica_disponivel", ok)
+    if (!ok && identical(isolate(input$correlacao), "policorica")) {
+      updateRadioButtons(session, "correlacao", selected = "pearson")
+      showNotification(
+        "A correlação policórica só está disponível com a amostra completa ou a inicial (1.000 pessoas, sorteio nº 1). O app voltou para Pearson.",
+        type = "warning", duration = 8)
+    }
+  })
+
+  output$nota_correlacao <- renderUI({
+    if (tem_policorica()) span(class = "small text-muted", "Policórica disponível para esta amostra.")
+    else span(class = "small text-muted",
+              "Policórica: só com a amostra completa ou a inicial (1.000 pessoas, sorteio nº 1).")
+  })
+
+  # --- Explicação "Pearson ou policórica?"
+  comparacao_pp <- reactive(comparar_pearson_policorica())
+
+  output$grafico_item_assimetrico <- renderPlot({
+    cp <- comparacao_pp(); req(cp)
+    grafico_respostas_item(cp$item_assim)
+  }, res = 96)
+
+  observeEvent(input$por_que_policorica, {
+    cp <- comparacao_pp()
+    showModal(modalDialog(
+      title = "Pearson ou policórica?", size = "l", easyClose = TRUE,
+      footer = modalButton("Fechar"),
+      explicacao_policorica(cp)
+    ))
   })
 
   # --- KMO / Bartlett e análise paralela --------------------------------

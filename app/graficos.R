@@ -159,6 +159,94 @@ grafico_scree <- function(par_res, ate = 15, mostrar_kaiser = FALSE) {
 }
 
 # =====================================================================
+# 2a. DISTRIBUIÇÃO DAS RESPOSTAS A UM ITEM (explicação Pearson × policórica)
+# =====================================================================
+grafico_respostas_item <- function(codigo) {
+  x <- dados_bfi[[codigo]]
+  prop <- as.numeric(table(factor(x, levels = 1:6))) / length(x)
+  preparar_grafico(mar = c(4.2, 4.2, 2.4, 0.8))
+  meio <- graphics::barplot(prop, names.arg = 1:6, col = itens[codigo, "cor"], border = NA,
+                            ylim = c(0, max(prop) * 1.18), axes = FALSE,
+                            xlab = "Resposta (1 = discordo totalmente … 6 = concordo totalmente)", ylab = "")
+  graphics::text(meio, prop, paste0(fmt(100 * prop, 0), "%"), pos = 3, cex = 0.85, col = TINTA)
+  graphics::title(main = itens[codigo, "nome"], font.main = 1, cex.main = 1, col.main = TINTA, line = 0.8)
+}
+
+# =====================================================================
+# 2a'. EXPLICAÇÃO "PEARSON OU POLICÓRICA?" (janela aberta pela barra lateral)
+# =====================================================================
+explicacao_policorica <- function(cp) {
+  p <- htmltools::p; strong <- htmltools::strong; em <- htmltools::em; h6 <- htmltools::h6
+  caixa <- function(...) htmltools::div(class = "p-2 mb-2 rounded small", style = "background:#f4f3ef;", ...)
+
+  numeros <- if (!is.null(cp)) htmltools::tagList(
+    htmltools::tags$table(
+      class = "table table-sm align-middle", style = "width:auto;",
+      htmltools::tags$thead(htmltools::tags$tr(
+        htmltools::tags$th("Amostra completa, 5 fatores, oblimin"),
+        htmltools::tags$th(class = "text-end", "Pearson"), htmltools::tags$th(class = "text-end", "Policórica"))),
+      htmltools::tags$tbody(
+        htmltools::tags$tr(htmltools::tags$td("Correlação média entre os itens (em módulo)"),
+          htmltools::tags$td(class = "text-end", fmt(cp$media_abs_r_p, 2)), htmltools::tags$td(class = "text-end", fmt(cp$media_abs_r_pc, 2))),
+        htmltools::tags$tr(htmltools::tags$td(sprintf("Correlação entre %s e %s (a que mais muda)", cp$par[1], cp$par[2])),
+          htmltools::tags$td(class = "text-end", fmt(cp$r_p, 2)), htmltools::tags$td(class = "text-end", fmt(cp$r_pc, 2))),
+        htmltools::tags$tr(htmltools::tags$td("Carga principal média dos itens"),
+          htmltools::tags$td(class = "text-end", fmt(cp$carga_p, 2)), htmltools::tags$td(class = "text-end", fmt(cp$carga_pc, 2))),
+        htmltools::tags$tr(htmltools::tags$td("Variância explicada pelos fatores"),
+          htmltools::tags$td(class = "text-end", fmt_pct(cp$total_p)), htmltools::tags$td(class = "text-end", fmt_pct(cp$total_pc)))
+      )
+    ),
+    p(class = "small", sprintf(
+      "Os fatores encontrados são os mesmos nas duas (congruência de Tucker de pelo menos %s): a estrutura não muda. O que muda é o tamanho das relações — com Pearson, tudo fica um pouco “encolhido”.",
+      fmt(cp$congruencia_min, 2)))
+  )
+
+  htmltools::tagList(
+    h6("1. O problema: as respostas não são números contínuos"),
+    p("Os itens são respondidos numa escala de 1 a 6 (de “discordo totalmente” a “concordo totalmente”). ",
+      "Essas respostas são ", htmltools::HTML("<strong>categorias ordenadas</strong>: "),
+      "sabemos que 5 é mais do que 4, mas não que a distância entre 4 e 5 ",
+      "seja igual à distância entre 1 e 2. A correlação de ", strong("Pearson"), " trata as respostas como se fossem medidas contínuas, como altura ou peso."),
+
+    h6(class = "mt-3", "2. O que a correlação policórica faz"),
+    p("A ", strong("policórica"), " imagina que, por trás de cada item, existe uma variável contínua “escondida” — por exemplo, o quanto a pessoa ",
+      em("realmente"), " gosta de refletir sobre as coisas. Ela supõe que essa variável segue uma curva normal e que a pessoa escolhe a resposta ",
+      "conforme o ponto em que seu valor cruza alguns ", strong("limiares"), " (entre 1 e 2, entre 2 e 3, e assim por diante). ",
+      "Então ela estima a correlação entre essas variáveis escondidas, e não entre as categorias."),
+
+    h6(class = "mt-3", "3. Por que isso importa: Pearson “encolhe” as correlações"),
+    p("Quando há poucas categorias e as respostas se concentram num dos extremos (distribuição ",
+      htmltools::HTML("<strong>assimétrica</strong>), "),
+      "a correlação de Pearson fica menor do que a relação real. Veja o item mais assimétrico destes dados:"),
+    shiny::plotOutput("grafico_item_assimetrico", height = "260px"),
+    caixa(if (!is.null(cp)) sprintf(
+      "Quase ninguém escolhe as respostas mais %s: as pessoas se concentram no lado do “%s” (assimetria = %s). Com isso, sobra pouca variação para Pearson captar.",
+      if (cp$assimetria < 0) "baixas" else "altas", if (cp$assimetria < 0) "concordo" else "discordo",
+      sub("^-", "−", fmt(cp$assimetria, 2)))),
+    p("Nestes dados, a diferença aparece assim:"),
+    numeros,
+
+    h6(class = "mt-3", "4. Por que a policórica seria a ideal aqui"),
+    p("Os itens têm só 6 categorias, e vários têm respostas assimétricas. Para escalas assim, a literatura recomenda a correlação policórica ",
+      "na análise fatorial — ela estima melhor as cargas e a estrutura (por exemplo, Holgado-Tello et al., 2010). ",
+      "Em uma pesquisa de verdade com estes dados, a escolha seria a policórica."),
+    caixa(strong("Mas ela tem custos: "),
+      "é muito mais pesada de calcular, precisa de amostras maiores e, com amostras pequenas, pode gerar uma matriz “mal-comportada” ",
+      "que precisa ser ajustada (suavizada). Com 7 ou mais categorias e respostas simétricas, Pearson e policórica costumam dar resultados muito parecidos."),
+
+    h6(class = "mt-3", "5. E por que o app usa Pearson?"),
+    p("Este app roda inteiro no navegador, sem servidor. Ali, calcular a policórica levaria até ", strong("um minuto"),
+      " a cada nova amostra — o que atrapalharia explorar o app. Por isso:"),
+    htmltools::tags$ul(
+      htmltools::tags$li("o app usa ", strong("Pearson"), " como padrão — a estrutura de fatores é a mesma, e as ideias da AFE são as mesmas;"),
+      htmltools::tags$li("a ", strong("policórica"), " fica disponível nas duas amostras que já vêm calculadas: a ", strong("completa"),
+                         " e a ", strong("inicial"), " (1.000 pessoas, sorteio nº 1). Use-as para comparar (a missão 13 faz isso).")),
+    p(class = "small text-muted mb-0",
+      "No R, a policórica é calculada com psych::polychoric(dados) ou diretamente na análise fatorial com psych::fa(dados, cor = \"poly\").")
+  )
+}
+
+# =====================================================================
 # 2b. AJUSTE CONFORME O NÚMERO DE FATORES (três gráficos pequenos)
 # =====================================================================
 grafico_ajuste_k <- function(ak, k_atual, k_sugerido) {
