@@ -140,7 +140,7 @@ aba_inicio <- nav_panel(
   "0. Comece aqui", value = "inicio",
   div(
     style = "max-width:980px;",
-    h4(class = "mt-1", "Bem-vindo ao Laboratório de Análise Fatorial Exploratória"),
+    h4(class = "mt-1", "Bem-vindo ao Laboratório de Psicometria – Análise Fatorial Exploratória"),
     ph(class = "lead", style = "font-size:1.1rem;",
        "Aqui você vai aprender Análise Fatorial Exploratória (AFE) <strong>fazendo</strong>: analisando dados reais, tomando decisões como um pesquisador e vendo as consequências de cada escolha."),
 
@@ -611,7 +611,7 @@ script_missoes <- tags$script(HTML("
 "))
 
 ui <- page_sidebar(
-  title = "Laboratório de Análise Fatorial Exploratória",
+  title = "Laboratório de Psicometria – Análise Fatorial Exploratória",
   theme = bs_theme(version = 5, bootswatch = "flatly"),
   sidebar = barra_lateral,
   # fillable = FALSE: a página rola normalmente, em vez de espremer tudo

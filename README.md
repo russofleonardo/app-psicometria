@@ -1,4 +1,4 @@
-# Laboratório de Análise Fatorial Exploratória
+# Laboratório de Psicometria – Análise Fatorial Exploratória
 
 App interativo, em português, para ensinar Análise Fatorial Exploratória (AFE) a iniciantes. Ele usa os 25 itens do Big Five do conjunto `psych::bfi` e traz missões guiadas que o próprio app confere.
 
