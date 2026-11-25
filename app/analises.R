@@ -115,7 +115,10 @@ autovalores_fatoriais <- function(R, n) {
   ))
 }
 
-analise_paralela <- function(R, n, semente, n_iter = 20) {
+# Para cada fator, o "acaso" é o percentil 95 dos autovalores simulados
+# (o valor que o acaso só supera em 5% das vezes) — mais rigoroso do que
+# a média, que tende a aceitar fatores demais.
+analise_paralela <- function(R, n, semente, n_iter = 50, percentil = 0.95) {
   p <- ncol(R)
   reais <- autovalores_fatoriais(R, n)
 
@@ -124,18 +127,21 @@ analise_paralela <- function(R, n, semente, n_iter = 20) {
     aleatorio <- matrix(stats::rnorm(n * p), nrow = n, ncol = p)
     autovalores_fatoriais(stats::cor(aleatorio), n)
   })
-  acaso <- rowMeans(simulados)
+  acaso <- apply(simulados, 1, stats::quantile, probs = percentil, names = FALSE)
 
   # Quantos fatores seguidos ficam ACIMA do acaso?
   acima <- reais > acaso
   sugeridos <- if (!acima[1]) 0 else (which(!acima)[1] - 1)
   if (is.na(sugeridos)) sugeridos <- p
 
-  # Para comparação: o critério de Kaiser (autovalores > 1 na matriz completa)
-  kaiser <- sum(eigen(R, symmetric = TRUE, only.values = TRUE)$values > 1)
+  # Para comparação: o critério de Kaiser usa OUTROS autovalores — os da
+  # matriz de correlação completa (com 1 na diagonal), que são maiores.
+  autovalores_R <- eigen(R, symmetric = TRUE, only.values = TRUE)$values
+  kaiser <- sum(autovalores_R > 1)
 
   list(reais = reais, acaso = acaso, sugeridos = sugeridos,
-       kaiser = kaiser, n_iter = n_iter)
+       kaiser = kaiser, autovalores_R = autovalores_R,
+       n_iter = n_iter, percentil = percentil)
 }
 
 # Porcentagem no formato brasileiro: 0,4237 -> "42,4%"
@@ -190,10 +196,25 @@ rodar_afe <- function(R, n, nfatores, extracao = "minres", rotacao = "none") {
   rmsea <- ajuste$RMSEA
   pegar <- function(x, i) if (is.null(x) || length(x) < i) NA_real_ else unname(x[i])
 
+  # Matriz de estrutura: correlação entre cada item e cada fator.
+  # Sem correlação entre fatores (Phi = identidade), ela é igual às cargas.
+  S <- if (is.null(Phi)) L else L %*% Phi
+  dimnames(S) <- dimnames(L)
+
+  # Resíduos: correlação observada − correlação que o modelo reproduz.
+  # (A diagonal não interessa: ela guarda a parte única de cada item.)
+  Rhat <- L %*% (if (is.null(Phi)) diag(ncol(L)) else Phi) %*% t(L)
+  residuos <- R - Rhat
+  diag(residuos) <- NA
+  fora_diag <- residuos[upper.tri(residuos)]
+
   list(
-    ok = TRUE, L = L, h2 = h2, u2 = 1 - h2,
+    ok = TRUE, L = L, S = S, h2 = h2, u2 = 1 - h2,
     ss = ss, prop = ss / p, total = sum(h2) / p,
     Phi = Phi, obliqua = !is.null(Phi),
+    residuos = residuos,
+    rmsr = sqrt(mean(fora_diag^2)),
+    prop_res_grandes = mean(abs(fora_diag) > 0.05),
     TLI = pegar(ajuste$TLI, 1),
     RMSEA = pegar(rmsea, 1), RMSEA_inf = pegar(rmsea, 2), RMSEA_sup = pegar(rmsea, 3),
     heywood = any(h2 >= 0.995),
@@ -323,6 +344,23 @@ classificar_alfa <- function(a) {
                    right = FALSE))
 }
 
+# Ômega de McDonald: ajusta um modelo de 1 fator só com os itens do fator e
+# calcula ω = (Σλ)² / ((Σλ)² + Σ(1 − λ²)). Diferente do alfa, ele NÃO supõe
+# que todos os itens tenham a mesma carga. Precisa de pelo menos 3 itens.
+omega_fator <- function(R, codigos, sinais) {
+  if (length(codigos) < 3) return(NA_real_)
+  Rk <- R[codigos, codigos] * outer(sinais, sinais)
+  ajuste <- tryCatch(
+    suppressWarnings(suppressMessages(
+      psych::fa(Rk, nfactors = 1, fm = "minres", warnings = FALSE))),
+    error = function(e) NULL)
+  if (is.null(ajuste)) return(NA_real_)
+  lambda <- as.numeric(ajuste$loadings)
+  if (sum(lambda) < 0) lambda <- -lambda
+  lambda <- pmin(lambda, 0.999)             # protege contra casos de Heywood
+  sum(lambda)^2 / (sum(lambda)^2 + sum(1 - lambda^2))
+}
+
 alfa_por_fator <- function(R, L, corte) {
   cls <- classificar_itens(L, corte)
   fatores <- lapply(seq_len(ncol(L)), function(f) {
@@ -338,8 +376,63 @@ alfa_por_fator <- function(R, L, corte) {
       dominio <- names(contagem)[which.max(contagem)]
       qtd <- max(contagem)
     }
+    w <- omega_fator(R, sel, sinais)
     list(fator = colnames(L)[f], itens = sel, invertidos = sel[sinais < 0],
-         alfa = a, classe = classificar_alfa(a), dominio = dominio, qtd_dominio = qtd)
+         alfa = a, classe = classificar_alfa(a), omega = w,
+         dominio = dominio, qtd_dominio = qtd)
   })
   list(fatores = fatores, fora = cls$codigo[cls$situacao == "sem_fator"])
+}
+
+# --- 9. Ajuste conforme o número de fatores ----------------------------
+# Roda a AFE de 1 a k_max fatores (sem rotação: o ajuste não depende dela).
+ajuste_por_k <- function(R, n, extracao, k_max = 10) {
+  linhas <- lapply(seq_len(k_max), function(k) {
+    a <- rodar_afe(R, n, k, extracao, "none")
+    if (!a$ok) return(data.frame(k = k, TLI = NA, RMSEA = NA, total = NA, heywood = NA))
+    data.frame(k = k, TLI = a$TLI, RMSEA = a$RMSEA, total = a$total, heywood = a$heywood)
+  })
+  do.call(rbind, linhas)
+}
+
+# --- 10. Comparar duas soluções ------------------------------------------
+# Congruência de Tucker: o "quão parecidas" são as cargas de dois fatores
+# (de −1 a 1). Regra usual: ≥ 0,95 = mesmo fator; 0,85 a 0,94 = parecido.
+classificar_congruencia <- function(x) {
+  x <- abs(x)
+  if (is.na(x)) "—" else if (x >= 0.95) "o mesmo fator"
+  else if (x >= 0.85) "parecido" else "diferente"
+}
+
+comparar_solucoes <- function(guardada, atual, corte) {
+  cg <- classificar_itens(guardada$L, corte)
+  ca <- classificar_itens(atual$L, corte)
+
+  # Para cada fator atual, o fator guardado mais parecido
+  cong <- psych::factor.congruence(atual$L, guardada$L)
+  pares <- data.frame(
+    atual = colnames(atual$L),
+    guardada = colnames(guardada$L)[apply(abs(cong), 1, which.max)],
+    congruencia = apply(cong, 1, function(r) r[which.max(abs(r))]),
+    stringsAsFactors = FALSE
+  )
+
+  itens_cmp <- data.frame(
+    codigo = rownames(atual$L),
+    h2_guardada = guardada$h2[rownames(atual$L)],
+    h2_atual = atual$h2,
+    fator_guardada = colnames(guardada$L)[cg$principal],
+    carga_guardada = cg$carga, situacao_guardada = cg$situacao,
+    fator_atual = colnames(atual$L)[ca$principal],
+    carga_atual = ca$carga, situacao_atual = ca$situacao,
+    stringsAsFactors = FALSE
+  )
+  # O item "mudou de fator"? Comparamos pelo par mais parecido.
+  equivalente <- setNames(pares$guardada, pares$atual)
+  itens_cmp$mudou <- equivalente[itens_cmp$fator_atual] != itens_cmp$fator_guardada
+
+  contar <- function(cls) c(cruzadas = sum(cls$situacao == "cruzada"),
+                            sem_fator = sum(cls$situacao == "sem_fator"))
+  list(pares = pares, itens = itens_cmp,
+       contagem_guardada = contar(cg), contagem_atual = contar(ca))
 }

@@ -110,11 +110,29 @@ aba_scree <- nav_panel(
     " do mesmo tamanho explicariam."),
   p(strong("Regra:"), " mantenha os fatores em que a linha azul (dados reais) fica ",
     em("acima"), " da linha laranja (acaso). Quando a azul cai abaixo da laranja, os fatores seguintes não explicam mais do que o acaso."),
+  p(class = "small text-muted",
+    "A linha laranja não é a média do acaso, e sim o seu ", strong("percentil 95"),
+    ": o valor que dados aleatórios só superam em 5% das vezes. Assim, um fator só é aceito se for claramente maior do que o acaso."),
+  checkboxInput("mostrar_kaiser", "Mostrar também os autovalores usados no critério de Kaiser",
+                value = FALSE, width = "100%"),
+  uiOutput("explica_kaiser"),
   plotOutput("scree", height = "460px"),
   tags$details(
     class = "mt-2",
     tags$summary("Ver a sugestão da análise paralela (tente contar antes!)"),
     uiOutput("sugestao_paralela")
+  ),
+  card(
+    class = "mt-3",
+    card_header("Quanto o ajuste melhora a cada fator?"),
+    p("Os gráficos mostram o TLI, o RMSEA e a variância explicada para modelos de 1 a 10 fatores ",
+      "(com o método de extração e o tipo de correlação escolhidos). As faixas coloridas marcam os valores bons (verde) e aceitáveis (amarelo)."),
+    p(class = "small text-muted",
+      "O anel preto marca o número de fatores escolhido agora; a linha laranja tracejada, a sugestão da análise paralela; ",
+      "um ✖ vermelho, um caso de Heywood (resultado não confiável). ",
+      "Repare que o ajuste sempre melhora, mas cada fator novo ajuda menos que o anterior: ",
+      "o objetivo é parar quando o ganho fica pequeno — a ", em("parcimônia"), "."),
+    card_body(plotOutput("grafico_ajuste_k", height = "380px"), fillable = FALSE)
   )
 )
 
@@ -132,30 +150,76 @@ aba_cargas <- nav_panel(
     uiOutput("caixa_variancia")
   ),
   uiOutput("leitura_ajuste"),
-  card(
-    card_header("Tabela de cargas fatoriais"),
-    p("A ", strong("carga"), " mostra o quanto cada item está ligado a cada fator. Ela vai de −1 a 1: ",
-      "quanto mais longe de zero, mais forte a ligação. Cargas ", strong("negativas"),
-      " indicam itens que andam no sentido contrário do fator (como os itens invertidos)."),
-    p(class = "small text-muted",
-      "Cargas acima do ponto de corte (barra lateral) aparecem em negrito e coloridas; as demais ficam apagadas. ",
-      "O ideal é que cada item tenha carga forte em um só fator."),
-    uiOutput("nota_obliqua"),
-    checkboxInput("agrupar_cargas", "Agrupar os itens pelo fator em que têm a maior carga",
-                  value = TRUE, width = "100%"),
-    uiOutput("tabela_cargas"),
-    tags$details(
-      class = "mt-3 small",
-      tags$summary("O que são h², autovalor e “situação”?"),
-      tags$ul(
-        class = "mt-2",
-        tags$li(strong("h² (comunalidade):"), " quanto da variação das respostas a um item os fatores conseguem explicar. ",
-                "Valores muito baixos (perto de 0,20 ou menos) indicam um item que pouco tem a ver com os fatores. ",
-                "Um valor igual ou maior que 1 é impossível na teoria: é o chamado ", em("caso de Heywood"), "."),
-        tags$li(strong("Autovalor do fator:"), " soma das cargas ao quadrado; mostra o “tamanho” do fator."),
-        tags$li(strong("Carga cruzada:"), " o item tem carga forte em mais de um fator — fica difícil dizer a qual pertence."),
-        tags$li(strong("Sem fator:"), " nenhuma carga passou do ponto de corte — o item não se encaixou em nenhum fator.")
+  # Guardar a solução atual para comparar depois (sub-aba "Comparar")
+  div(class = "d-flex flex-wrap align-items-center gap-2 mb-2",
+      actionButton("guardar_solucao", "Guardar esta solução para comparar",
+                   icon = icon("thumbtack"), class = "btn-sm btn-outline-primary"),
+      uiOutput("descricao_guardada", inline = TRUE)),
+  navset_card_underline(
+    id = "sub_cargas",
+    nav_panel(
+      "Tabela de cargas", value = "tabela",
+      p("A ", strong("carga"), " mostra o quanto cada item está ligado a cada fator. Ela vai de −1 a 1: ",
+        "quanto mais longe de zero, mais forte a ligação. Cargas ", strong("negativas"),
+        " indicam itens que andam no sentido contrário do fator (como os itens invertidos)."),
+      p(class = "small text-muted",
+        "Cargas acima do ponto de corte (barra lateral) aparecem em negrito e coloridas; as demais ficam apagadas. ",
+        "O ideal é que cada item tenha carga forte em um só fator."),
+      uiOutput("nota_obliqua"),
+      conditionalPanel(
+        "input.rotacao == 'oblimin' || input.rotacao == 'promax'",
+        radioButtons("matriz_cargas", "Mostrar:",
+                     choices = c("Matriz padrão (cargas)" = "padrao",
+                                 "Matriz de estrutura (correlações item–fator)" = "estrutura"),
+                     selected = "padrao", inline = TRUE, width = "100%")
+      ),
+      checkboxInput("agrupar_cargas", "Agrupar os itens pelo fator em que têm a maior carga",
+                    value = TRUE, width = "100%"),
+      uiOutput("tabela_cargas"),
+      tags$details(
+        class = "mt-3 small",
+        tags$summary("O que são h², autovalor, SQ e “situação”?"),
+        tags$ul(
+          class = "mt-2",
+          tags$li(strong("h² (comunalidade):"), " quanto da variação das respostas a um item os fatores conseguem explicar. ",
+                  "Valores muito baixos (perto de 0,20 ou menos) indicam um item que pouco tem a ver com os fatores. ",
+                  "Um valor igual ou maior que 1 é impossível na teoria: é o chamado ", em("caso de Heywood"), "."),
+          tags$li(strong("Autovalor (sem rotação):"), " a soma das cargas ao quadrado de um fator; mostra o “tamanho” do fator."),
+          tags$li(strong("Soma das cargas² — SQ (com rotação):"), " depois de rotacionar, a soma das cargas ao quadrado ",
+                  em("não é mais"), " um autovalor: a rotação redistribui a variância entre os fatores. Por isso o nome muda. ",
+                  "O total explicado pelos fatores juntos continua o mesmo."),
+          tags$li(strong("Carga cruzada:"), " o item tem carga forte em mais de um fator — fica difícil dizer a qual pertence."),
+          tags$li(strong("Sem fator:"), " nenhuma carga passou do ponto de corte — o item não se encaixou em nenhum fator.")
+        )
       )
+    ),
+    nav_panel(
+      "Diagrama do modelo", value = "diagrama",
+      p("O diagrama mostra o modelo da análise fatorial: cada ", strong("fator"), " (os círculos, à direita) é uma variável que não ",
+        "podemos observar diretamente, e as setas indicam que ele ", em("influencia"), " as respostas aos itens (os retângulos, à esquerda). ",
+        "O número em cada seta é a carga."),
+      p(class = "small text-muted",
+        "Setas tracejadas e vermelhas são cargas negativas (como as dos itens invertidos). ",
+        "Para o diagrama ficar legível, cada item aparece ligado só ao fator em que tem a maior carga, e só quando ela passa do ponto de corte. ",
+        "Nas rotações oblíquas, os arcos à direita mostram as correlações entre fatores que passam do ponto de corte. ",
+        "(O desenho é feito pelo pacote psych, que escreve os números com ponto em vez de vírgula.)"),
+      card_body(plotOutput("diagrama", height = "720px"), fillable = FALSE, padding = 0)
+    ),
+    nav_panel(
+      "Resíduos", value = "residuos",
+      p("A análise fatorial tenta ", strong("reproduzir as correlações"), " entre os itens usando só os fatores. ",
+        "O ", strong("resíduo"), " é a diferença entre a correlação observada e a que o modelo reproduz: ",
+        "ele mostra o que o modelo ", em("não"), " conseguiu explicar."),
+      p(class = "small text-muted",
+        "Num bom modelo, quase tudo fica cinza (resíduos perto de zero). Blocos coloridos indicam relações que os fatores deixaram de fora — ",
+        "um sinal de que podem faltar fatores. Atenção: a escala aqui vai só até ±0,20, porque os resíduos são números pequenos. ",
+        "A rotação não muda os resíduos."),
+      uiOutput("resumo_residuos"),
+      card_body(plotOutput("mapa_residuos", height = "720px"), fillable = FALSE, padding = 0)
+    ),
+    nav_panel(
+      "Comparar", value = "comparar",
+      uiOutput("conteudo_comparar")
     )
   )
 )
@@ -206,7 +270,7 @@ aba_fatores <- nav_panel(
     uiOutput("conteudo_phi")
   ),
   card(
-    card_header("Consistência interna (alfa) de cada fator"),
+    card_header("Consistência interna (alfa e ômega) de cada fator"),
     p("O ", strong("alfa de Cronbach"), " indica se os itens de um fator “contam a mesma história”: ",
       "se as respostas a eles costumam andar juntas. Vai de 0 a 1; a partir de 0,70 costuma ser considerado aceitável."),
     p(class = "small text-muted",
@@ -215,7 +279,8 @@ aba_fatores <- nav_panel(
       "A coluna “Parece medir” mostra o domínio que mais aparece entre os itens do fator."),
     uiOutput("tabela_alfa"),
     uiOutput("itens_fora"),
-    uiOutput("nota_alfa")
+    uiOutput("nota_alfa"),
+    uiOutput("nota_omega")
   )
 )
 
@@ -467,7 +532,22 @@ server <- function(input, output, session) {
   # =====================================================================
   # Aba 3
   # =====================================================================
-  output$scree <- renderPlot(grafico_scree(paralela()), res = 96)
+  output$scree <- renderPlot(
+    grafico_scree(paralela(), mostrar_kaiser = isTRUE(input$mostrar_kaiser)), res = 96)
+
+  output$explica_kaiser <- renderUI({
+    if (!isTRUE(input$mostrar_kaiser)) return(NULL)
+    pa <- paralela()
+    acima_azul <- sum(pa$reais > 1)
+    div(class = "small p-2 mb-2 rounded", style = "background:#f4f3ef;border-left:4px solid #898781;",
+        p(class = "mb-1", strong("Atenção: são dois tipos de autovalor. "),
+          "A linha azul mostra os autovalores ", em("fatoriais"), " (só da parte que os itens compartilham), usados na análise paralela. ",
+          "A linha cinza mostra os autovalores da ", em("matriz de correlação completa"),
+          " (com 1 na diagonal), que são maiores — e são estes que o critério de Kaiser compara com 1."),
+        p(class = "mb-0", sprintf(
+          "Por isso, contar os pontos azuis acima de 1 dá %d, enquanto o critério de Kaiser (pontos cinzas acima de 1) dá %d. Quando alguém cita o critério de Kaiser, está falando da linha cinza.",
+          acima_azul, pa$kaiser)))
+  })
 
   output$sugestao_paralela <- renderUI({
     pa <- paralela()
@@ -476,10 +556,19 @@ server <- function(input, output, session) {
         sprintf("Com esta amostra, a análise paralela sugere %s.",
                 if (pa$sugeridos == 1) "1 fator" else paste(pa$sugeridos, "fatores"))),
       p(class = "small text-muted",
-        sprintf("Para comparar: o antigo critério de Kaiser (autovalores maiores que 1) sugeriria %d. Ele costuma exagerar no número de fatores; a análise paralela é mais confiável. (Simulações: %d conjuntos de dados aleatórios.)",
-                pa$kaiser, pa$n_iter))
+        sprintf("Para comparar: o antigo critério de Kaiser (autovalores da matriz completa maiores que 1) sugeriria %d. Ele costuma exagerar no número de fatores e não é recomendado como critério único. (Análise paralela: %d conjuntos de dados aleatórios, comparando com o percentil %d.)",
+                pa$kaiser, pa$n_iter, round(100 * pa$percentil)))
     )
   })
+
+  ajuste_k <- reactive({
+    withProgress(message = "Calculando modelos de 1 a 10 fatores…", value = 0.5, {
+      ajuste_por_k(correlacao()$R, nrow(amostra()), input$extracao)
+    })
+  })
+
+  output$grafico_ajuste_k <- renderPlot(
+    grafico_ajuste_k(ajuste_k(), nfat(), paralela()$sugeridos), res = 96)
 
   # =====================================================================
   # Aba 4
@@ -561,13 +650,95 @@ server <- function(input, output, session) {
 
   output$nota_obliqua <- renderUI({
     if (!afe()$obliqua) return(NULL)
-    p(class = "small text-muted",
-      "Com rotação oblíqua, a tabela mostra a ", em("matriz padrão"),
-      " (o efeito de cada fator sobre o item, descontando os outros). Como os fatores se correlacionam, ",
-      "as porcentagens de variância dos fatores se sobrepõem e não podem ser somadas.")
+    div(class = "small text-muted mb-2",
+      p(class = "mb-1", "Com rotação oblíqua, existem duas tabelas diferentes:"),
+      tags$ul(class = "mb-1",
+        tags$li(strong("Matriz padrão:"), " o efeito ", em("único"), " de cada fator sobre o item, descontando os outros fatores. ",
+                "É a que usamos para decidir a que fator cada item pertence."),
+        tags$li(strong("Matriz de estrutura:"), " a correlação simples entre o item e cada fator. ",
+                "Como os fatores se correlacionam, um item acaba se correlacionando um pouco com fatores aos quais não pertence.")),
+      p(class = "mb-0", "Só sem correlação entre os fatores (varimax) as duas são iguais — e só aí a carga é a correlação item–fator. ",
+        "Nas oblíquas, as porcentagens de variância dos fatores se sobrepõem e não podem ser somadas."))
   })
 
-  output$tabela_cargas <- renderUI(tabela_cargas(afe(), input$corte, isTRUE(input$agrupar_cargas)))
+  output$tabela_cargas <- renderUI(
+    tabela_cargas(afe(), input$corte, isTRUE(input$agrupar_cargas),
+                  matriz = if (is.null(input$matriz_cargas)) "padrao" else input$matriz_cargas))
+
+  # --- Diagrama do modelo
+  output$diagrama <- renderPlot({
+    a <- afe()
+    graphics::par(mar = c(0.5, 0.5, 0.5, 0.5))
+    psych::fa.diagram(a$L, Phi = a$Phi, cut = input$corte, simple = TRUE,
+                      digits = 2, main = "", cex = 0.9)
+  }, res = 96)
+
+  # --- Resíduos
+  output$resumo_residuos <- renderUI({
+    a <- afe()
+    pct <- a$prop_res_grandes
+    frase <- if (pct > 0.30) {
+      "Muitos resíduos grandes: os fatores deixam várias relações sem explicar. Procure blocos coloridos — eles mostram grupos de itens que ainda “pedem” um fator."
+    } else if (pct > 0.10) {
+      "Uma parte das relações ficou sem explicação. Veja se os resíduos maiores se concentram em algum grupo de itens (um possível fator a mais) ou estão espalhados."
+    } else if (pct > 0.02) {
+      "Poucos resíduos grandes: o modelo reproduz bem a maior parte das correlações."
+    } else {
+      "Praticamente nenhum resíduo grande. Se o número de fatores for alto, cuidado: o modelo pode estar “decorando” os detalhes desta amostra."
+    }
+    nivel <- if (pct > 0.30) "ruim" else if (pct > 0.10) "atencao" else "bom"
+    div(class = "mb-2",
+        p(class = "mb-1",
+          strong("RMSR: "), fmt(a$rmsr, 3),
+          span(class = "text-muted small", " (raiz da média dos resíduos ao quadrado; quanto menor, melhor — abaixo de 0,05 costuma ser considerado bom)")),
+        p(class = "mb-1",
+          strong("Resíduos maiores que 0,05: "), fmt_pct(pct, 0),
+          span(class = "text-muted small", " dos pares de itens")),
+        p(class = "mb-0", selo(nivel, frase)))
+  })
+
+  output$mapa_residuos <- renderPlot(
+    grafico_correlacao(afe()$residuos, limite = 0.2, rotulo = "resíduo"), res = 96)
+
+  # --- Guardar e comparar soluções
+  solucao_guardada <- reactiveVal(NULL)
+
+  info_atual <- reactive(list(
+    nfatores = nfat(), extracao = input$extracao, rotacao = input$rotacao,
+    correlacao = input$correlacao, n = nrow(amostra()), sorteio = semente() - 2025))
+
+  observeEvent(input$guardar_solucao, {
+    a <- afe_com()
+    if (!isTRUE(a$ok)) {
+      showNotification("Não há solução válida para guardar.", type = "warning")
+      return()
+    }
+    solucao_guardada(list(afe = a, info = info_atual()))
+    showNotification("Solução guardada! Mude as escolhas e abra a sub-aba “Comparar”.", type = "message")
+  })
+
+  output$descricao_guardada <- renderUI({
+    g <- solucao_guardada()
+    if (is.null(g)) return(span(class = "small text-muted", "Nenhuma solução guardada ainda."))
+    span(class = "small", strong("Guardada: "), descrever_solucao(g$info))
+  })
+
+  output$conteudo_comparar <- renderUI({
+    g <- solucao_guardada()
+    if (is.null(g)) return(div(class = "text-muted",
+      p("Ainda não há solução guardada. Para comparar duas soluções:"),
+      tags$ol(
+        tags$li("Escolha uma solução (por exemplo, 5 fatores com varimax) e clique em ",
+                strong("Guardar esta solução para comparar"), "."),
+        tags$li("Mude o que quiser na barra lateral (rotação, número de fatores, tipo de correlação…)."),
+        tags$li("Volte aqui para ver as duas lado a lado."))))
+    a <- afe()
+    tagList(
+      p(class = "small", strong("Guardada: "), descrever_solucao(g$info), br(),
+        strong("Atual: "), descrever_solucao(info_atual())),
+      tabela_comparacao(comparar_solucoes(g$afe, a, input$corte), g$afe, a)
+    )
+  })
 
   # =====================================================================
   # Aba 5
@@ -680,6 +851,17 @@ server <- function(input, output, session) {
       "O alfa é calculado a partir da matriz de correlação em uso (alfa padronizado)",
       if (input$correlacao == "policorica") "; como ela é policórica, este é o chamado alfa ordinal" else "",
       ". Fatores com poucos itens tendem a ter alfa mais baixo."))
+  })
+
+  output$nota_omega <- renderUI({
+    div(class = "small mt-2 p-2 rounded", style = "background:#f4f3ef;",
+      p(class = "mb-1", strong("Alfa ou ômega? "),
+        "O alfa supõe que todos os itens do fator têm a mesma carga — o que raramente é verdade. ",
+        "O ", strong("ômega"), " (de McDonald) é calculado a partir das cargas e não faz essa suposição; hoje ele é o mais recomendado. ",
+        "Quando os dois ficam parecidos, as cargas dos itens são parecidas; quando o ômega fica bem acima do alfa, as cargas são desiguais."),
+      p(class = "mb-0", strong("Cuidado: "),
+        "um alfa (ou ômega) alto não prova que o fator mede uma coisa só. Ele também sobe só por haver mais itens. ",
+        "A evidência de que o fator é unidimensional vem da análise fatorial (cargas e resíduos), não do alfa."))
   })
 
   # =====================================================================
