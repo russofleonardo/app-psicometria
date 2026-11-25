@@ -11,7 +11,7 @@ App Shiny em R para ensinar Análise Fatorial Exploratória (AFE) a iniciantes. 
 
 ## Publicação (GitHub Pages)
 - O app está publicado em https://russofleonardo.github.io/app-psicometria/, a partir da pasta `docs/` (GitHub Pages, branch `main`, pasta `/docs`).
-- **Sempre que alterar algo em `app/`**, antes do commit: teste no R, gere de novo a versão do navegador com `shinylive::export("app", "docs")` e inclua a pasta `docs/` no mesmo commit. Sem isso, o link público continua mostrando a versão antiga.
+- **Sempre que alterar algo em `app/`**, antes do commit: teste no R, gere de novo a versão do navegador com `source("ferramentas/exportar.R")` (não use `shinylive::export` direto: o script também ajusta a página de abertura — título, idioma e a tela "Carregando…") e inclua a pasta `docs/` no mesmo commit. Sem isso, o link público continua mostrando a versão antiga.
 - Depois do push, o GitHub leva 1 a 2 minutos para atualizar o link. Quem já abriu o app pode precisar recarregar com Ctrl+F5.
 - O progresso das missões fica salvo no navegador pelo `id` de cada missão (`app/missoes.R`). As missões podem ser reordenadas, inseridas ou retiradas, mas o `id` de uma missão existente **nunca** muda; missão nova ganha um `id` novo e único. A tabela `MAPA_IDS_V1` converte o progresso salvo no formato antigo (por número) e não deve ser alterada.
 - A policórica só está disponível nas amostras pré-calculadas em `app/policoricas_prontas.rds`. Se mudar os dados, o tamanho inicial da amostra, a semente inicial ou `calcular_correlacao()`, rode de novo `ferramentas/gerar_policoricas.R`.

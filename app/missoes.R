@@ -228,13 +228,15 @@ MISSOES <- list(
     passos = c(
       "Mantenha 5 fatores e a rotação varimax (a da missão anterior).",
       "Na aba 5, deixe ligada a opção “Agrupar os itens pelo fator em que têm a maior carga”.",
-      "Para cada fator (F1 a F5), leia os itens do seu grupo e dê um nome a ele.",
+      "Para cada fator (F1 a F5), leia os itens do seu grupo e escreva um nome para ele nos campos logo acima da tabela (tecle Enter depois de cada nome).",
       "Procure os itens marcados com “carga cruzada”.",
-      "Abra a sub-aba “Diagrama do modelo”: os mesmos grupos aparecem desenhados como um modelo (fatores → itens)."
+      "Abra a sub-aba “Diagrama do modelo”: os mesmos grupos aparecem desenhados como um modelo (fatores → itens), já com os nomes que você deu."
     ),
     condicoes = list(
       cond_aba("cargas"), cond_fatores(5), cond_rotacao("varimax"),
-      cond("Ligar “Agrupar os itens pelo fator em que têm a maior carga”", function(i) isTRUE(i$agrupar_cargas))
+      cond("Ligar “Agrupar os itens pelo fator em que têm a maior carga”", function(i) isTRUE(i$agrupar_cargas)),
+      cond("Dar um nome a cada um dos fatores (campos acima da tabela)",
+           function(i) isTRUE(i$n_nomes >= i$nfatores))
     ),
     reflexao = "Algum item tem carga forte em dois fatores ao mesmo tempo? Pelo conteúdo do item, isso faz sentido? E a sua previsão da missão 1 se confirmou?",
     comentario = "Provavelmente os nomes saem quase iguais aos domínios do Big Five (Neuroticismo, Extroversão, Conscienciosidade, Amabilidade, Abertura). Itens com carga cruzada costumam ter conteúdo “misto”. Por exemplo, N4 (“Sente-se triste com frequência”) pode carregar em Neuroticismo e, negativamente, em Extroversão — pessoas tristes tendem a ser menos sociáveis. Uma carga cruzada não é um erro: ela mostra que o item mede um pouco de cada coisa, o que é importante saber antes de montar uma escala."
@@ -403,7 +405,8 @@ MISSOES <- list(
       "Na aba 1, decida se algum item deve sair ou mudar de escala — ou se todos ficam (essa também é uma decisão a justificar).",
       "Na aba 5, guarde essa solução (“Guardar esta solução para comparar”).",
       "Volte à aba 1 e confira o “Diário de decisões”: ele resume o caminho que você percorreu.",
-      "Escreva (no papel ou num documento) a justificativa de cada escolha, usando o que o app mostrou."
+      "Escreva a justificativa de cada escolha, usando o que o app mostrou.",
+      "Por fim, clique em “Gerar o relatório da sua pesquisa” (logo abaixo): cole a sua justificativa, confira o relatório e salve em PDF."
     ),
     condicoes = list(
       cond_aba("itens"), cond_amostra_completa(),

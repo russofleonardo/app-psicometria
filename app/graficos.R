@@ -368,6 +368,16 @@ tabela_msa <- function(kmo_res) {
 # 4. PEÇAS DAS ABAS 4 A 6 (CARGAS, ROTAÇÃO, FATORES E ALFA)
 # =====================================================================
 
+# Nomes dados aos fatores pela pessoa (vetor nomeado: "F1" -> "Neuroticismo")
+nome_de <- function(f, nomes) {
+  if (is.null(nomes) || !(f %in% names(nomes)) || is.na(nomes[[f]])) "" else trimws(nomes[[f]])
+}
+# "F2 · Extroversão" (ou só "F2", se o fator ainda não tem nome)
+rotulo_fator <- function(f, nomes = NULL) {
+  n <- nome_de(f, nomes)
+  if (nzchar(n)) paste0(f, " · ", n) else f
+}
+
 # Número com sinal de menos tipográfico: -0,45 -> "−0,45"
 fmt_sinal <- function(x, d = 2) {
   x <- round(x, d)
@@ -401,7 +411,7 @@ estilo_num <- "font-variant-numeric:tabular-nums;white-space:nowrap;"
 # matriz = "padrao" (as cargas) ou "estrutura" (correlação item–fator,
 # só faz diferença nas rotações oblíquas). A situação dos itens e o
 # agrupamento vêm sempre da matriz padrão.
-tabela_cargas <- function(afe, corte, agrupar = TRUE, matriz = "padrao") {
+tabela_cargas <- function(afe, corte, agrupar = TRUE, matriz = "padrao", nomes = NULL) {
   estrutura <- identical(matriz, "estrutura") && afe$obliqua
   cls <- classificar_itens(afe$L, corte)
   L <- if (estrutura) afe$S else afe$L
@@ -451,9 +461,9 @@ tabela_cargas <- function(afe, corte, agrupar = TRUE, matriz = "padrao") {
       class = "table table-sm align-middle mb-0",
       htmltools::tags$thead(htmltools::tags$tr(
         htmltools::tags$th("Item"),
-        lapply(colnames(L), function(f) htmltools::tags$th(class = "text-end", f)),
+        lapply(colnames(L), function(f) htmltools::tags$th(class = "text-end", rotulo_fator(f, nomes))),
         htmltools::tags$th(class = "text-end",
-                           title = "Comunalidade: quanto da variância do item os fatores explicam", "h²"),
+                           termo("comunalidade", "h²")),
         htmltools::tags$th(if (estrutura) "" else "Situação"))),
       htmltools::tags$tbody(linhas),
       # Sem rotação, a soma das cargas² de cada fator É o seu autovalor.
@@ -469,11 +479,11 @@ tabela_cargas <- function(afe, corte, agrupar = TRUE, matriz = "padrao") {
 }
 
 # --- Gráfico de cargas: um fator contra outro (aba 6) -------------------
-grafico_cargas <- function(L, x = 1, y = 2, corte = 0.3) {
+grafico_cargas <- function(L, x = 1, y = 2, corte = 0.3, nomes = NULL) {
   preparar_grafico(mar = c(4.2, 4.2, 0.8, 0.8))
   graphics::plot(NA, xlim = c(-1, 1), ylim = c(-1, 1), asp = 1, axes = FALSE,
-                 xlab = paste("Carga em", colnames(L)[x]),
-                 ylab = paste("Carga em", colnames(L)[y]))
+                 xlab = paste("Carga em", rotulo_fator(colnames(L)[x], nomes)),
+                 ylab = paste("Carga em", rotulo_fator(colnames(L)[y], nomes)))
   # "Zona fraca": cargas abaixo do ponto de corte nos dois fatores
   graphics::rect(-corte, -corte, corte, corte, col = "#efeee9", border = NA)
   marcas <- seq(-1, 1, 0.5)
@@ -519,7 +529,7 @@ tabela_comparacao_rotacao <- function(sem, com, corte) {
 }
 
 # --- Correlação entre fatores (aba 7) -----------------------------------
-tabela_phi <- function(Phi) {
+tabela_phi <- function(Phi, nomes = NULL) {
   k <- ncol(Phi)
   htmltools::div(
     style = "overflow-x:auto;",
@@ -528,9 +538,9 @@ tabela_phi <- function(Phi) {
       htmltools::tags$thead(htmltools::tags$tr(
         htmltools::tags$th(""),
         lapply(colnames(Phi), function(f)
-          htmltools::tags$th(class = "text-end", style = "min-width:4.5em;", f)))),
+          htmltools::tags$th(class = "text-end", style = "min-width:4.5em;", rotulo_fator(f, nomes))))),
       htmltools::tags$tbody(lapply(seq_len(k), function(i) htmltools::tags$tr(
-        htmltools::tags$th(rownames(Phi)[i]),
+        htmltools::tags$th(style = "white-space:nowrap;", rotulo_fator(rownames(Phi)[i], nomes)),
         lapply(seq_len(k), function(j) {
           if (j > i) return(htmltools::tags$td())
           if (j == i) return(htmltools::tags$td(class = "text-end text-muted", style = estilo_num, "1"))
@@ -637,7 +647,7 @@ reflexao_missao <- function(k) {
 }
 
 # --- Alfa de cada fator (aba 7) -----------------------------------------
-tabela_alfa <- function(alfas) {
+tabela_alfa <- function(alfas, nomes = NULL) {
   linhas <- lapply(alfas$fatores, function(f) {
     n_itens <- length(f$itens)
     parece <- if (n_itens == 0) htmltools::span(class = "text-muted", "nenhum item")
@@ -656,7 +666,7 @@ tabela_alfa <- function(alfas) {
       else selo(if (f$alfa >= 0.7) "bom" else if (f$alfa >= 0.6) "atencao" else "ruim", f$classe)
 
     htmltools::tags$tr(
-      htmltools::tags$th(f$fator),
+      htmltools::tags$th(style = "white-space:nowrap;", rotulo_fator(f$fator, nomes)),
       htmltools::tags$td(style = "white-space:nowrap;", parece),
       htmltools::tags$td(lapply(f$itens, function(cod) htmltools::tags$span(
         class = "text-nowrap d-inline-block",
@@ -766,7 +776,7 @@ tabela_comparacao <- function(cmp, guardada, atual) {
     htmltools::div(style = "overflow-x:auto;", indices),
     htmltools::h6(class = "mt-3", "Os fatores são os mesmos?"),
     htmltools::p(class = "small text-muted",
-      "A congruência de Tucker compara as cargas de dois fatores (vai de 0 a 1). ",
+      "A ", termo("congruencia", "congruência de Tucker"), " compara as cargas de dois fatores (vai de 0 a 1). ",
       "Referência usual: 0,95 ou mais = o mesmo fator; de 0,85 a 0,94 = parecido; abaixo disso = diferente. ",
       "Os números dos fatores podem mudar de uma solução para outra — por isso comparamos pelo conteúdo, não pelo número. ",
       "Se as soluções têm itens diferentes, a comparação usa só os itens que estão nas duas."),
@@ -782,14 +792,14 @@ tabela_comparacao <- function(cmp, guardada, atual) {
 # As caixinhas e os seletores são HTML simples que avisam o servidor com
 # Shiny.setInputValue (o mesmo jeito dos botões das missões). Assim a tabela
 # pode ser redesenhada à vontade sem perder as escolhas, que ficam no servidor.
-tabela_itens <- function(diag, excluidos, alfas, manual) {
+tabela_itens <- function(diag, excluidos, alfas, manual, nomes = NULL) {
   th <- htmltools::tags$th; td <- htmltools::tags$td; tr <- htmltools::tags$tr
   # Sem diagnóstico (o modelo não pôde ser estimado): só as caixinhas
   sem_diag <- is.null(diag) || is.null(alfas)
   k <- if (sem_diag) 0 else length(alfas$fatores)
   # Rótulo de cada escala: "F2 (parece Extroversão)"
   rotulo_fator <- if (sem_diag) character(0) else vapply(alfas$fatores, function(f)
-    if (is.na(f$dominio)) f$fator else sprintf("%s · %s", f$fator, DOMINIOS[[f$dominio]]), "")
+    if (nzchar(nome_de(f$fator, nomes))) rotulo_fator(f$fator, nomes) else if (is.na(f$dominio)) f$fator else sprintf("%s · %s", f$fator, DOMINIOS[[f$dominio]]), "")
 
   linhas <- lapply(itens$codigo, function(cod) {
     incluido <- !(cod %in% excluidos)
@@ -855,8 +865,8 @@ tabela_itens <- function(diag, excluidos, alfas, manual) {
       htmltools::tags$thead(tr(
         th(title = "Desmarque para tirar o item da análise", "Incluir"),
         th("Item"),
-        th(class = "text-end", title = "KMO do item: o quanto ele compartilha com os demais", "KMO"),
-        th(class = "text-end", title = "Comunalidade: quanto do item os fatores explicam", "h²"),
+        th(class = "text-end", termo("kmo", "KMO")),
+        th(class = "text-end", termo("comunalidade", "h²")),
         th(style = "white-space:nowrap;", "Maior carga"),
         th(style = "white-space:nowrap;", title = "De qual escala o item faz parte, para o alfa e o ômega (aba 7)", "Escala (para o alfa)"),
         th(class = "text-end", style = "white-space:nowrap;",
@@ -894,4 +904,157 @@ tabela_diario <- function(diario) {
       }))
     )
   )
+}
+
+# =====================================================================
+# 8. RELATÓRIO "DA SUA PESQUISA" (para imprimir / salvar como PDF)
+# =====================================================================
+relatorio_html <- function(d) {
+  h <- htmltools::tags
+  tx <- texto_relatorio(d)
+  num <- function(x) h$td(class = "num", x)
+  rotulo <- function(f) rotulo_fator(f, d$nomes)
+
+  # Tabela 1 — cargas (matriz padrão), cargas abaixo do corte em branco
+  L <- d$afe$L
+  cls <- classificar_itens(L, d$corte)
+  ordem <- order(cls$principal, -abs(cls$carga))
+  tab1 <- h$table(
+    class = "tab-rel",
+    h$thead(h$tr(h$th("Item"), lapply(colnames(L), function(f) h$th(class = "num", rotulo(f))), h$th(class = "num", "h²"))),
+    h$tbody(lapply(ordem, function(i) {
+      cod <- rownames(L)[i]
+      h$tr(h$td(itens[cod, "nome"]),
+           lapply(seq_len(ncol(L)), function(f) {
+             x <- L[i, f]
+             if (abs(x) >= d$corte) num(h$strong(fmt_sinal(x))) else num("")
+           }),
+           num(fmt(d$afe$h2[[cod]], 2)))
+    })))
+
+  # Tabela 2 — correlação entre fatores (só nas rotações oblíquas)
+  tab2 <- if (d$afe$obliqua) {
+    Phi <- d$afe$Phi
+    h$table(
+      class = "tab-rel", style = "width:auto;",
+      h$thead(h$tr(h$th(""), lapply(colnames(Phi), function(f) h$th(class = "num", f)))),
+      h$tbody(lapply(seq_len(ncol(Phi)), function(i) h$tr(
+        h$th(rotulo(rownames(Phi)[i])),
+        lapply(seq_len(ncol(Phi)), function(j)
+          if (j > i) h$td("") else if (j == i) num("—") else num(fmt_sinal(Phi[i, j])))))))
+  }
+
+  # Tabela 3 — consistência interna
+  tab3 <- h$table(
+    class = "tab-rel",
+    h$thead(h$tr(h$th("Escala"), h$th("Itens"), h$th(class = "num", "α"), h$th(class = "num", "ω"))),
+    h$tbody(lapply(d$alfas$fatores, function(f) h$tr(
+      h$td(rotulo(f$fator)),
+      h$td(if (length(f$itens) == 0) "—" else
+        paste(ifelse(f$itens %in% f$invertidos, paste0(f$itens, " (inv.)"), f$itens), collapse = ", ")),
+      num(if (is.na(f$alfa)) "—" else fmt(f$alfa, 2)),
+      num(if (is.na(f$omega)) "—" else fmt(f$omega, 2))))))
+
+  # Decisões sobre os itens
+  manuais <- d$manuais
+  decisoes <- h$ul(
+    h$li(if (length(d$excluidos) == 0) "Todos os 25 itens foram mantidos na análise."
+         else sprintf("Itens excluídos da análise: %s.", paste(vapply(d$excluidos, function(c) itens[c, "nome"], ""), collapse = "; "))),
+    if (length(manuais) > 0) h$li(sprintf("Escalas definidas manualmente: %s.",
+      paste(vapply(names(manuais), function(c) sprintf("%s → %s", c,
+        if (manuais[[c]] == 0) "fora das escalas" else rotulo(paste0("F", manuais[[c]]))), ""), collapse = "; "))),
+    if (length(d$alfas$fora) > 0) h$li(sprintf("Itens fora das escalas: %s.", paste(d$alfas$fora, collapse = ", "))))
+
+  diario <- if (!is.null(d$diario) && nrow(d$diario) > 0) h$table(
+    class = "tab-rel",
+    h$thead(h$tr(h$th("#"), h$th("Decisão"), h$th(class = "num", "Itens"), h$th("Configuração"),
+                 h$th(class = "num", "TLI"), h$th(class = "num", "RMSEA"), h$th(class = "num", "Variância"))),
+    h$tbody(lapply(seq_len(nrow(d$diario)), function(i) {
+      r <- d$diario[i, ]
+      h$tr(h$td(i), h$td(r$acao), num(r$n_itens), h$td(r$config),
+           num(fmt(r$TLI, 3)), num(fmt(r$RMSEA, 3)), num(fmt_pct(r$total)))
+    })))
+
+  justificativa <- if (nzchar(trimws(d$justificativa))) {
+    lapply(strsplit(trimws(d$justificativa), "\n+")[[1]], h$p)
+  } else h$p(class = "vazio", "(Não preenchida.)")
+
+  htmltools::div(
+    class = "relatorio",
+    h$div(class = "rel-cabecalho",
+      h$h1(if (nzchar(trimws(d$titulo))) d$titulo else "Análise fatorial exploratória de itens do Big Five"),
+      h$p(class = "rel-autor", if (nzchar(trimws(d$autor))) d$autor else "Autor(a) não informado(a)"),
+      h$p(class = "rel-data", sprintf("Relatório gerado em %s · Laboratório de Psicometria – Análise Fatorial Exploratória", d$data))),
+
+    h$h2("Método"),
+    h$h3("Participantes"), h$p(tx$participantes),
+    h$h3("Instrumento"), h$p(tx$instrumento),
+    h$h3("Análise dos dados"), h$p(tx$analise),
+
+    h$h2("Resultados"),
+    lapply(tx$resultados, h$p),
+
+    h$p(class = "tab-titulo", h$strong("Tabela 1. "),
+        sprintf("Cargas fatoriais (%scargas abaixo de %s omitidas) e comunalidades (h²).",
+                if (d$afe$obliqua) "matriz padrão; " else "", fmt(d$corte, 2))),
+    tab1,
+    if (!is.null(tab2)) h$p(class = "tab-titulo", h$strong("Tabela 2. "), "Correlações entre os fatores."),
+    tab2,
+    h$p(class = "tab-titulo", h$strong(if (is.null(tab2)) "Tabela 2. " else "Tabela 3. "),
+        "Consistência interna das escalas (α = alfa de Cronbach; ω = ômega de McDonald)."),
+    tab3,
+
+    h$h2("Decisões sobre os itens"),
+    decisoes,
+    if (!is.null(diario)) h$p(class = "tab-titulo", h$strong("Diário de decisões.")),
+    diario,
+
+    h$h2("Justificativa das escolhas"),
+    justificativa,
+
+    h$div(class = "rel-rodape",
+      h$p("Russo, L. F. (2026). Laboratório de Psicometria – Análise Fatorial Exploratória [Aplicativo web]. https://russofleonardo.github.io/app-psicometria/"),
+      h$p("Dados: conjunto bfi do pacote psych (Revelle), itens do International Personality Item Pool, projeto SAPA. Laboratório licenciado sob CC BY-NC-ND 4.0."))
+  )
+}
+
+# Estilo do relatório (na tela e na impressão)
+CSS_RELATORIO <- "
+.relatorio { font-family: Georgia, 'Times New Roman', serif; color: #111; font-size: 11.5pt; line-height: 1.5; }
+.relatorio h1 { font-size: 17pt; margin: 0 0 .3rem; }
+.relatorio h2 { font-size: 13.5pt; margin: 1.3rem 0 .4rem; border-bottom: 1px solid #999; padding-bottom: .15rem; }
+.relatorio h3 { font-size: 11.5pt; font-style: italic; margin: .8rem 0 .2rem; }
+.relatorio p { margin: 0 0 .55rem; text-align: justify; }
+.relatorio .rel-autor { font-size: 12pt; margin: 0; }
+.relatorio .rel-data { font-size: 9.5pt; color: #555; }
+.relatorio .tab-titulo { margin: .9rem 0 .25rem; text-align: left; }
+.relatorio .tab-rel { border-collapse: collapse; width: 100%; font-size: 9.5pt; margin-bottom: .6rem; }
+.relatorio .tab-rel th, .relatorio .tab-rel td { padding: .12rem .4rem; vertical-align: top; }
+.relatorio .tab-rel thead th { border-top: 1.5px solid #111; border-bottom: 1px solid #111; text-align: left; }
+.relatorio .tab-rel tbody tr:last-child td, .relatorio .tab-rel tbody tr:last-child th { border-bottom: 1.5px solid #111; }
+.relatorio .tab-rel .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.relatorio .vazio { color: #777; font-style: italic; }
+.relatorio .rel-rodape { margin-top: 1.5rem; padding-top: .4rem; border-top: 1px solid #999; font-size: 8.5pt; color: #444; }
+.relatorio .rel-rodape p { margin: 0 0 .2rem; text-align: left; }
+@media print {
+  @page { size: A4; margin: 16mm 15mm; }
+  body * { visibility: hidden !important; }
+  .relatorio, .relatorio * { visibility: visible !important; }
+  .relatorio { position: absolute; left: 0; top: 0; width: 100%; }
+  .modal, .modal-dialog, .modal-content, .modal-body { position: static !important; overflow: visible !important;
+    transform: none !important; max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }
+  .modal-backdrop, .nao-imprimir { display: none !important; }
+  .relatorio .tab-rel tr { page-break-inside: avoid; }
+  .relatorio h2, .relatorio h3, .relatorio .tab-titulo { page-break-after: avoid; }
+}
+"
+
+# Página HTML completa do relatório (para o botão "Baixar (HTML)")
+relatorio_pagina <- function(d) {
+  htmltools::doRenderTags(htmltools::tags$html(
+    htmltools::tags$head(htmltools::tags$meta(charset = "utf-8"),
+                         htmltools::tags$title("Relatório – Análise fatorial exploratória"),
+                         htmltools::tags$style(htmltools::HTML(paste0(CSS_RELATORIO,
+                           " body { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }")))),
+    htmltools::tags$body(relatorio_html(d))))
 }

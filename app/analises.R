@@ -569,3 +569,103 @@ comparar_solucoes <- function(guardada, atual, corte) {
   list(pares = pares, itens = itens_cmp,
        contagem_guardada = contar(cg), contagem_atual = contar(ca))
 }
+
+# --- 11. Nomes dos fatores acompanham os fatores ------------------------
+# Quando a solução muda (outro nº de fatores, rotação, itens...), os fatores
+# podem mudar de ordem. Para cada fator novo, procuramos o fator antigo mais
+# parecido (congruência de Tucker >= 0,90): se ele tinha nome, o nome passa
+# para o fator novo. Cada nome antigo é usado no máximo uma vez.
+transferir_nomes <- function(nomes, L_antiga, L_nova, limite = 0.90) {
+  vazio <- stats::setNames(character(0), character(0))
+  if (length(nomes) == 0 || is.null(L_antiga)) return(list(nomes = vazio, perdidos = character(0)))
+  comuns <- intersect(rownames(L_nova), rownames(L_antiga))
+  if (length(comuns) < 3) return(list(nomes = vazio, perdidos = unname(nomes)))
+  cong <- abs(psych::factor.congruence(L_nova[comuns, , drop = FALSE], L_antiga[comuns, , drop = FALSE]))
+  novos <- vazio
+  usados <- character(0)
+  # Os pares mais parecidos escolhem primeiro
+  ordem <- order(-cong)
+  for (pos in ordem) {
+    j <- (pos - 1) %% nrow(cong) + 1          # fator novo
+    i <- (pos - 1) %/% nrow(cong) + 1         # fator antigo
+    f_novo <- rownames(cong)[j]; f_antigo <- colnames(cong)[i]
+    if (cong[j, i] < limite) break
+    if (f_novo %in% names(novos) || f_antigo %in% usados) next
+    if (f_antigo %in% names(nomes) && nzchar(nomes[[f_antigo]])) {
+      novos[f_novo] <- nomes[[f_antigo]]
+      usados <- c(usados, f_antigo)
+    }
+  }
+  perdidos <- unname(nomes[setdiff(names(nomes)[nzchar(nomes)], usados)])
+  list(nomes = novos, perdidos = perdidos)
+}
+
+# --- 12. Textos do relatório "da sua pesquisa" ---------------------------
+# Recebe uma lista "d" com tudo o que a análise produziu e devolve os
+# parágrafos do Método e dos Resultados, no estilo de um artigo (APA),
+# com números no formato brasileiro.
+texto_relatorio <- function(d) {
+  fs <- function(k) if (k == 1) "1 fator" else paste(k, "fatores")
+  p_txt <- function(p) if (p < 0.001) "< 0,001" else paste("=", fmt(p, 3))
+  nomes_ext <- c(minres = "resíduos mínimos (minres)", ml = "máxima verossimilhança (ml)", pa = "eixos principais (pa)")
+  nomes_rot <- c(none = "sem rotação", varimax = "rotação varimax (ortogonal)",
+                 oblimin = "rotação oblimin (oblíqua)", promax = "rotação promax (oblíqua)")
+  n_itens <- nrow(d$afe$L)
+  rot_f <- function(f) { n <- nome_de(f, d$nomes); if (nzchar(n)) sprintf("%s (%s)", f, n) else f }
+
+  # ---------------- Método
+  participantes <- if (d$completa) {
+    sprintf("Os dados vêm do conjunto bfi, do pacote psych do R, coletados no projeto on-line SAPA. Foram analisadas as respostas das %s pessoas que responderam a todos os itens.", fmt_int(d$n))
+  } else {
+    sprintf("Os dados vêm do conjunto bfi, do pacote psych do R, coletados no projeto on-line SAPA. Foi analisada uma amostra aleatória de %s pessoas (sorteio nº %d), dentre as %s que responderam a todos os itens.",
+            fmt_int(d$n), d$sorteio, fmt_int(N_TOTAL))
+  }
+  instrumento <- sprintf(
+    "Foram usados %s dos 25 itens do International Personality Item Pool (IPIP) que avaliam os Cinco Grandes Fatores da personalidade (Amabilidade, Conscienciosidade, Extroversão, Neuroticismo e Abertura), respondidos numa escala de 1 (discordo totalmente) a 6 (concordo totalmente).%s",
+    n_itens, if (length(d$excluidos) > 0) sprintf(" Os itens %s foram excluídos da análise (ver Decisões sobre os itens).", paste(d$excluidos, collapse = ", ")) else "")
+  analise <- sprintf(
+    "Foi realizada uma análise fatorial exploratória com base na matriz de correlações %s, com extração por %s e %s. O número de fatores foi avaliado pela análise paralela (%d conjuntos de dados aleatórios, comparação com o percentil %d), pelo critério de Kaiser e pelos índices de ajuste. Cargas a partir de %s foram consideradas relevantes. A consistência interna foi estimada pelos coeficientes alfa e ômega. As análises foram feitas no Laboratório de Psicometria – Análise Fatorial Exploratória (Russo, 2026), que usa o pacote psych do R.",
+    if (d$correlacao == "policorica") "policóricas" else "de Pearson",
+    nomes_ext[[d$extracao]], nomes_rot[[d$rotacao]], d$paralela$n_iter, round(100 * d$paralela$percentil), fmt(d$corte, 2))
+
+  # ---------------- Resultados
+  adequacao <- sprintf(
+    "O índice de Kaiser-Meyer-Olkin foi KMO = %s (%s), e o teste de esfericidade de Bartlett foi significativo, χ²(%s) = %s, p %s, indicando que os dados são %s para a análise fatorial.",
+    fmt(d$kmo$geral, 2), d$kmo$classe, fmt_int(d$kmo$gl), fmt(d$kmo$qui2, 1), p_txt(d$kmo$p),
+    if (d$kmo$geral >= 0.6 && d$kmo$p < 0.05) "adequados" else "pouco adequados")
+  if (d$kmo$p >= 0.05) adequacao <- sub("foi significativo", "não foi significativo", adequacao)
+
+  retencao <- sprintf(
+    "A análise paralela sugeriu a retenção de %s, e o critério de Kaiser (autovalores maiores que 1), %s. Optou-se por extrair %s.",
+    fs(d$paralela$sugeridos), fs(d$paralela$kaiser), fs(d$afe$nfatores))
+
+  ajuste <- sprintf(
+    "O modelo apresentou TLI = %s e RMSEA = %s%s; a raiz média dos resíduos quadráticos (RMSR) foi %s. Os fatores explicaram, em conjunto, %s da variância dos itens.%s",
+    fmt(d$afe$TLI, 3), fmt(d$afe$RMSEA, 3),
+    if (!is.na(d$afe$RMSEA_inf)) sprintf(" (IC 90%%: %s a %s)", fmt(d$afe$RMSEA_inf, 3), fmt(d$afe$RMSEA_sup, 3)) else "",
+    fmt(d$afe$rmsr, 3), fmt_pct(d$afe$total),
+    if (d$afe$heywood) " Atenção: houve caso de Heywood (comunalidade igual ou maior que 1), o que torna a solução pouco confiável." else "")
+
+  cls <- classificar_itens(d$afe$L, d$corte)
+  cargas <- sprintf(
+    "Considerando cargas a partir de %s, %d itens apresentaram carga relevante em um único fator, %d apresentaram cargas cruzadas e %d não tiveram carga relevante em nenhum fator (Tabela 1).%s",
+    fmt(d$corte, 2), sum(cls$situacao == "ok"), sum(cls$situacao == "cruzada"), sum(cls$situacao == "sem_fator"),
+    if (length(d$nomes) > 0) paste0(" Os fatores foram interpretados como: ",
+                                    paste(vapply(colnames(d$afe$L), rot_f, ""), collapse = "; "), ".") else "")
+
+  correlacoes <- if (d$afe$obliqua) {
+    r <- d$afe$Phi[lower.tri(d$afe$Phi)]
+    sprintf("As correlações entre os fatores variaram de %s a %s (Tabela 2).",
+            sub("^-", "−", fmt(min(r), 2)), sub("^-", "−", fmt(max(r), 2)))
+  } else if (d$afe$nfatores > 1) "Com a rotação usada, os fatores foram mantidos sem correlação entre si." else NULL
+
+  escalas <- Filter(function(f) length(f$itens) >= 2, d$alfas$fatores)
+  confiab <- if (length(escalas) > 0) paste0(
+    "A consistência interna das escalas foi: ",
+    paste(vapply(escalas, function(f) sprintf("%s, α = %s e ω = %s", rot_f(f$fator), fmt(f$alfa, 2),
+                                              if (is.na(f$omega)) "—" else fmt(f$omega, 2)), ""), collapse = "; "),
+    " (Tabela 3).") else NULL
+
+  list(participantes = participantes, instrumento = instrumento, analise = analise,
+       resultados = Filter(Negate(is.null), list(adequacao, retencao, ajuste, cargas, correlacoes, confiab)))
+}

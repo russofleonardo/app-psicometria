@@ -21,6 +21,7 @@ source("dados.R",    encoding = "UTF-8")
 source("analises.R", encoding = "UTF-8")
 source("graficos.R", encoding = "UTF-8")
 source("missoes.R",  encoding = "UTF-8")
+source("glossario.R", encoding = "UTF-8")
 
 # O controle deslizante anda de 50 em 50; o último passo (2.450)
 # significa "todas as pessoas" (2.436).
@@ -38,13 +39,13 @@ barra_lateral <- sidebar(
   sliderInput("nfatores", "Número de fatores",
               min = 1, max = 10, value = 2, step = 1),
 
-  selectInput("extracao", "Método de extração",
+  selectInput("extracao", termo("extracao", "Método de extração"),
               choices = c("Resíduos mínimos (minres)" = "minres",
                           "Máxima verossimilhança (ml)" = "ml",
                           "Eixos principais (pa)" = "pa"),
               selected = "minres"),
 
-  selectInput("rotacao", "Rotação",
+  selectInput("rotacao", termo("rotacao", "Rotação"),
               choices = c("Nenhuma (none)" = "none",
                           "Varimax (ortogonal)" = "varimax",
                           "Oblimin (oblíqua)" = "oblimin",
@@ -68,7 +69,7 @@ barra_lateral <- sidebar(
     });
   ")),
 
-  sliderInput("corte", "Ponto de corte das cargas",
+  sliderInput("corte", termo("ponto_corte", "Ponto de corte das cargas"),
               min = 0.10, max = 0.60, value = 0.30, step = 0.05, ticks = FALSE),
 
   sliderInput("n_amostra", "Tamanho da amostra",
@@ -171,7 +172,7 @@ aba_inicio <- nav_panel(
         "<span style='display:inline-block;width:.85em;height:.85em;border-radius:2px;margin-right:.4em;vertical-align:-.05em;background:%s;'></span><strong>%s — %s</strong>: %s",
         CORES_DOMINIO[[l]], l, DOMINIOS[[l]], DESCRICOES_DOMINIO[[l]]))))),
     ph(class = "small text-muted",
-       "Alguns itens são <strong>invertidos</strong> (marcados com (−)): concordar com eles indica <em>menos</em> do traço — por exemplo, “E1 Fala pouco” indica menos Extroversão."),
+       paste0("Alguns itens são ", termo_html("invertido", "<strong>invertidos</strong>"), " (marcados com (−)): concordar com eles indica <em>menos</em> do traço — por exemplo, “E1 Fala pouco” indica menos Extroversão.")),
 
     # --- O que é AFE
     h5(class = "mt-4", "O que é a Análise Fatorial Exploratória?"),
@@ -180,7 +181,7 @@ aba_inicio <- nav_panel(
       div(
         ph("Muitas coisas que a psicologia estuda — como a Extroversão — <strong>não podem ser observadas diretamente</strong>. O que observamos são as <strong>respostas aos itens</strong>."),
         ph("A ideia central da AFE é simples: se vários itens são influenciados pelo mesmo traço, as respostas a eles <strong>andam juntas</strong> (se correlacionam). Quem é extrovertido tende a concordar com “Faz amigos com facilidade” <em>e</em> com “Sabe cativar as pessoas”."),
-        ph("A AFE olha para as correlações entre todos os itens e procura o <strong>menor número de fatores</strong> (variáveis “escondidas”) capaz de explicá-las. Depois, mostra o quanto cada item está ligado a cada fator — a <strong>carga fatorial</strong>.")
+        ph(paste0("A AFE olha para as correlações entre todos os itens e procura o <strong>menor número de ", termo_html("fator", "fatores"), "</strong> (variáveis “escondidas”) capaz de explicá-las. Depois, mostra o quanto cada item está ligado a cada fator — a ", termo_html("carga", "<strong>carga fatorial</strong>"), "."))
       ),
       div(
         diagrama_modelo,
@@ -220,6 +221,8 @@ aba_inicio <- nav_panel(
     tags$ul(
       tags$li(HTML(sprintf("<strong>Missões guiadas:</strong> no alto da página. São %d missões, do básico ao desafio, que guiam você pelas abas — e terminam com você escolhendo e defendendo o seu próprio modelo. Cada uma diz o que fazer, confere se você fez e termina com uma pergunta para refletir. O seu progresso fica salvo neste navegador.", N_MISSOES))),
       tags$li(HTML("<strong>Barra lateral:</strong> os controles da análise (número de fatores, rotação, tamanho da amostra…). Mexa à vontade: tudo é recalculado na hora, e nada se estraga.")),
+      tags$li(HTML(paste0("<strong>Glossário:</strong> palavras com ", termo_html("carga", "sublinhado pontilhado"),
+                          " têm uma definição curta — passe o mouse sobre elas (ou toque, no celular). Experimente aqui mesmo!"))),
       tags$li(HTML("<strong>Ponto de partida:</strong> comece pela missão 1 e siga a ordem."))),
     tags$button(
       type = "button", class = "btn btn-primary mt-1 mb-4",
@@ -255,7 +258,7 @@ aba_itens <- nav_panel(
       "Por enquanto, só leia os itens. As colunas com números (KMO, h², cargas, alfa…) vão fazer sentido ao longo das missões — ",
       "você volta a esta aba no fim, para tomar decisões sobre os itens."),
   p("Antes de analisar, conheça os ", strong("25 itens"), " do questionário. Cada pessoa disse o quanto cada frase a descreve, ",
-    "de 1 (discordo totalmente) a 6 (concordo totalmente). Os itens marcados com ", strong("(−)"), " são ", strong("invertidos"),
+    "de 1 (discordo totalmente) a 6 (concordo totalmente). Os itens marcados com ", strong("(−)"), " são ", termo("invertido", strong("invertidos")),
     ": concordar com eles indica ", em("menos"), " do traço."),
   p(class = "small text-muted",
     "Nesta aba você pode ", strong("tirar itens da análise"), " (desmarcando a caixinha) e decidir de ", strong("qual escala"),
@@ -275,7 +278,9 @@ aba_itens <- nav_panel(
       p("Os ", strong("sinais para investigar"), " da tabela não são ordens de exclusão. Uma exclusão se justifica quando ",
         strong("duas evidências"), " apontam na mesma direção:"),
       tags$ol(
-        tags$li(strong("Estatística:"), " KMO do item abaixo de 0,50; comunalidade (h²) muito baixa; nenhuma carga forte; carga cruzada que persiste; caso de Heywood."),
+        tags$li(HTML(paste0("<strong>Estatística:</strong> ", termo_html("kmo", "KMO"), " do item abaixo de 0,50; ",
+                            termo_html("comunalidade", "comunalidade (h²)"), " muito baixa; nenhuma carga forte; ",
+                            termo_html("carga_cruzada", "carga cruzada"), " que persiste; ", termo_html("heywood", "caso de Heywood"), "."))),
         tags$li(strong("Conteúdo:"), " ao reler o item, ele parece ambíguo, mal redigido ou medir outra coisa.")),
       p(strong("Cuidados:")),
       tags$ul(
@@ -339,8 +344,8 @@ aba_kmo <- nav_panel(
 # --- Aba 4: scree plot e análise paralela
 aba_scree <- nav_panel(
   "4. Quantos fatores?", value = "scree",
-  p("O ", strong("scree plot"), " mostra quanto cada fator explica (o autovalor). A ",
-    strong("análise paralela"), " compara isso com o que dados ", em("totalmente aleatórios"),
+  p("O ", termo("scree", strong("scree plot")), " mostra quanto cada fator explica (o ", termo("autovalor"), "). A ",
+    termo("paralela", strong("análise paralela")), " compara isso com o que dados ", em("totalmente aleatórios"),
     " do mesmo tamanho explicariam."),
   p(strong("Regra:"), " mantenha os fatores em que a linha azul (dados reais) fica ",
     em("acima"), " da linha laranja (acaso). Quando a azul cai abaixo da laranja, os fatores seguintes não explicam mais do que o acaso."),
@@ -433,11 +438,11 @@ aba_cargas <- nav_panel(
     id = "sub_cargas",
     nav_panel(
       "Tabela de cargas", value = "tabela",
-      p("A ", strong("carga"), " mostra o quanto cada item está ligado a cada fator. Ela vai de −1 a 1: ",
+      p("A ", termo("carga", strong("carga")), " mostra o quanto cada item está ligado a cada fator. Ela vai de −1 a 1: ",
         "quanto mais longe de zero, mais forte a ligação. Cargas ", strong("negativas"),
         " indicam itens que andam no sentido contrário do fator (como os itens invertidos)."),
       p(class = "small text-muted",
-        "Cargas acima do ponto de corte (barra lateral) aparecem em negrito e coloridas; as demais ficam apagadas. ",
+        "Cargas acima do ", termo("ponto_corte", "ponto de corte"), " (barra lateral) aparecem em negrito e coloridas; as demais ficam apagadas. ",
         "O ideal é que cada item tenha carga forte em um só fator."),
       uiOutput("nota_obliqua"),
       conditionalPanel(
@@ -449,6 +454,7 @@ aba_cargas <- nav_panel(
       ),
       checkboxInput("agrupar_cargas", "Agrupar os itens pelo fator em que têm a maior carga",
                     value = TRUE, width = "100%"),
+      uiOutput("campos_nomes"),
       uiOutput("tabela_cargas"),
       tags$details(
         class = "mt-3 small",
@@ -457,7 +463,7 @@ aba_cargas <- nav_panel(
           class = "mt-2",
           tags$li(strong("h² (comunalidade):"), " quanto da variação das respostas a um item os fatores conseguem explicar. ",
                   "Valores muito baixos (perto de 0,20 ou menos) indicam um item que pouco tem a ver com os fatores. ",
-                  "Um valor igual ou maior que 1 é impossível na teoria: é o chamado ", em("caso de Heywood"), "."),
+                  "Um valor igual ou maior que 1 é impossível na teoria: é o chamado ", termo("heywood", em("caso de Heywood")), "."),
           tags$li(strong("Autovalor (sem rotação):"), " a soma das cargas ao quadrado de um fator; mostra o “tamanho” do fator."),
           tags$li(strong("Soma das cargas² — SQ (com rotação):"), " depois de rotacionar, a soma das cargas ao quadrado ",
                   em("não é mais"), " um autovalor: a rotação redistribui a variância entre os fatores. Por isso o nome muda. ",
@@ -482,7 +488,7 @@ aba_cargas <- nav_panel(
     nav_panel(
       "Resíduos", value = "residuos",
       p("A análise fatorial tenta ", strong("reproduzir as correlações"), " entre os itens usando só os fatores. ",
-        "O ", strong("resíduo"), " é a diferença entre a correlação observada e a que o modelo reproduz: ",
+        "O ", termo("residuo", strong("resíduo")), " é a diferença entre a correlação observada e a que o modelo reproduz: ",
         "ele mostra o que o modelo ", em("não"), " conseguiu explicar."),
       p(class = "small text-muted",
         "Num bom modelo, quase tudo fica cinza (resíduos perto de zero). Blocos coloridos indicam relações que os fatores deixaram de fora — ",
@@ -502,7 +508,7 @@ aba_cargas <- nav_panel(
 aba_rotacao <- nav_panel(
   "6. Rotação", value = "rotacao",
   p("Imagine os itens como pontos num mapa. Os fatores são os eixos desse mapa. ",
-    strong("Rotacionar"), " é girar os eixos para que cada um passe o mais perto possível de um grupo de pontos. ",
+    termo("rotacao", strong("Rotacionar")), " é girar os eixos para que cada um passe o mais perto possível de um grupo de pontos. ",
     "Os pontos não mudam de lugar entre si: só muda o ponto de vista, e a solução fica mais fácil de interpretar."),
   p(class = "small text-muted",
     "Cada ponto é um item, na cor do seu domínio. O quadrado cinza no centro é a “zona fraca”: ",
@@ -545,7 +551,7 @@ aba_fatores <- nav_panel(
   ),
   card(
     card_header("Consistência interna (alfa e ômega) de cada fator"),
-    p("O ", strong("alfa de Cronbach"), " indica se os itens de um fator “contam a mesma história”: ",
+    p("O ", termo("alfa", strong("alfa de Cronbach")), " indica se os itens de um fator “contam a mesma história”: ",
       "se as respostas a eles costumam andar juntas. Vai de 0 a 1; a partir de 0,70 costuma ser considerado aceitável."),
     p(class = "small text-muted",
       "Cada item entra no fator em que tem a maior carga (se ela passar do ponto de corte). ",
@@ -654,6 +660,10 @@ ui <- page_sidebar(
     .nav-tabs .nav-link:hover, .nav-underline .nav-link:hover { color: #1a252f; text-decoration: underline; }
     .nav-tabs .nav-link.active, .nav-underline .nav-link.active { color: #1f1f1f; font-weight: 600; }
     .botao-missao { min-width: 2.3rem; }
+    /* Termos do glossário: sublinhado pontilhado; a definição aparece ao passar o mouse */
+    .termo { border-bottom: 1.5px dotted #6c8bb5; cursor: help; }
+    .termo:focus { outline: 2px solid #b7d3f6; outline-offset: 1px; }
+    .tooltip-inner { max-width: 320px; text-align: left; font-size: .85rem; }
     .botao-recolher { border: 0; border-radius: 0; }
     .botao-recolher:hover { background: rgba(0,0,0,.04); }
     .botao-recolher .seta { display: inline-block; transition: transform .2s; }
@@ -689,6 +699,14 @@ ui <- page_sidebar(
     }
   ")),
   script_missoes,
+  tags$style(HTML(CSS_RELATORIO)),
+  # Ativa os balões do glossário em todo o app — inclusive no conteúdo que
+  # aparece depois (o "selector" faz o Bootstrap procurar os termos na hora).
+  tags$script(HTML("
+    $(function() {
+      new bootstrap.Tooltip(document.body, {selector: '[data-bs-toggle=\"tooltip\"]', trigger: 'hover focus'});
+    });
+  ")),
   layout_columns(
     col_widths = breakpoints(sm = 12, xxl = c(8, 4)),
     abas,
@@ -831,13 +849,20 @@ server <- function(input, output, session) {
   # =====================================================================
   # Caixas claras, com texto escuro (boa leitura); a cor da borda e do ícone
   # mostra se o resultado é adequado (azul) ou um problema (vermelho).
-  caixa_clara <- function(ok, icone, ...) {
-    cor <- if (ok) "#2a78d6" else "#d03b3b"
+  # "nivel": TRUE/FALSE (adequado ou não) ou uma classe: bom, aceitavel, mediocre, ruim.
+  CORES_CAIXA <- list(
+    bom       = c(borda = "#0ca30c", fundo = "#eef8ee"),
+    aceitavel = c(borda = "#2a78d6", fundo = "#eef4fc"),
+    mediocre  = c(borda = "#c98500", fundo = "#fdf5e6"),
+    ruim      = c(borda = "#d03b3b", fundo = "#fbeeee"))
+  caixa_clara <- function(nivel, ..., icone = NULL) {
+    if (is.logical(nivel)) nivel <- if (isTRUE(nivel)) "aceitavel" else "ruim"
+    cores <- if (nivel %in% names(CORES_CAIXA)) CORES_CAIXA[[nivel]] else CORES_CAIXA$aceitavel
     value_box(
       ...,
-      showcase = icon(icone, style = sprintf("color:%s;", cor)),
-      theme = value_box_theme(bg = if (ok) "#eef4fc" else "#fbeeee", fg = "#1f1f1f"),
-      style = sprintf("border-left: 6px solid %s;", cor)
+      showcase = if (!is.null(icone)) icon(icone, style = sprintf("color:%s;", cores[["borda"]])),
+      theme = value_box_theme(bg = cores[["fundo"]], fg = "#1f1f1f"),
+      style = sprintf("border-left: 6px solid %s;", cores[["borda"]])
     )
   }
   nota_caixa <- function(...) p(class = "small mb-0", style = "color:#52514e;", ...)
@@ -845,8 +870,8 @@ server <- function(input, output, session) {
   output$caixa_kmo <- renderUI({
     k <- kmo()
     caixa_clara(
-      k$geral >= 0.6, "gauge-high",
-      title = "KMO geral (Kaiser-Meyer-Olkin)",
+      k$geral >= 0.6, icone = "gauge-high",
+      title = termo("kmo", "KMO geral (Kaiser-Meyer-Olkin)"),
       value = fmt(k$geral, 2),
       p(class = "mb-1", strong(paste0("Classificação: ", k$classe, "."))),
       p(class = "mb-2", k$texto_kmo),
@@ -857,8 +882,8 @@ server <- function(input, output, session) {
   output$caixa_bartlett <- renderUI({
     k <- kmo()
     caixa_clara(
-      k$p < 0.05, "circle-nodes",
-      title = "Teste de esfericidade de Bartlett",
+      k$p < 0.05, icone = "circle-nodes",
+      title = termo("bartlett", "Teste de esfericidade de Bartlett"),
       value = paste0("p ", if (k$p < 0.001) "< 0,001" else paste0("= ", fmt(k$p, 3))),
       p(class = "mb-1", strong(sprintf("χ² = %s; gl = %s", fmt(k$qui2, 1), fmt_int(k$gl)))),
       p(class = "mb-2", k$texto_bartlett),
@@ -930,46 +955,47 @@ server <- function(input, output, session) {
 
   leitura <- reactive(interpretar_ajuste(afe(), paralela()$sugeridos))
 
-  tema_classe <- function(classe) switch(classe,
-    bom = "success", aceitavel = "primary", mediocre = "warning", ruim = "danger", "secondary")
+  # Caixas no mesmo estilo claro da aba 3 (verde = bom, azul = aceitável,
+  # amarelo = medíocre, vermelho = ruim)
+  nivel_caixa <- function(classe) if (classe %in% names(CORES_CAIXA)) classe else "aceitavel"
 
   output$caixa_tli <- renderUI({
     a <- afe(); l <- leitura()
-    value_box(
-      title = "TLI (índice de Tucker-Lewis)",
+    caixa_clara(
+      nivel_caixa(l$c_tli),
+      title = termo("tli", "TLI (índice de Tucker-Lewis)"),
       value = fmt(a$TLI, 3),
-      p(strong(paste0("Ajuste ", NOMES_CLASSE[[l$c_tli]], "."))),
-      p(class = "small", l$texto_tli),
-      p(class = "small opacity-75", "Referência: ≥ 0,95 bom; ≥ 0,90 aceitável; abaixo disso, ruim. Quanto maior, melhor."),
-      theme = tema_classe(l$c_tli)
+      p(class = "mb-1", strong(paste0("Ajuste ", NOMES_CLASSE[[l$c_tli]], "."))),
+      p(class = "small mb-2", l$texto_tli),
+      nota_caixa("Referência: ≥ 0,95 bom; ≥ 0,90 aceitável; abaixo disso, ruim. Quanto maior, melhor.")
     )
   })
 
   output$caixa_rmsea <- renderUI({
     a <- afe(); l <- leitura()
-    value_box(
-      title = "RMSEA (erro de aproximação)",
+    caixa_clara(
+      nivel_caixa(l$c_rmsea),
+      title = termo("rmsea", "RMSEA (erro de aproximação)"),
       value = fmt(a$RMSEA, 3),
-      p(strong(paste0("Ajuste ", NOMES_CLASSE[[l$c_rmsea]], ".")),
+      p(class = "mb-1", strong(paste0("Ajuste ", NOMES_CLASSE[[l$c_rmsea]], ".")),
         if (!is.na(a$RMSEA_inf))
           span(class = "small", sprintf(" Intervalo de 90%%: %s a %s.", fmt(a$RMSEA_inf, 3), fmt(a$RMSEA_sup, 3)))),
-      p(class = "small", l$texto_rmsea),
-      p(class = "small opacity-75", "Referência: ≤ 0,05 bom; ≤ 0,08 aceitável; ≤ 0,10 medíocre; acima, ruim. Quanto menor, melhor."),
-      theme = tema_classe(l$c_rmsea)
+      p(class = "small mb-2", l$texto_rmsea),
+      nota_caixa("Referência: ≤ 0,05 bom; ≤ 0,08 aceitável; ≤ 0,10 medíocre; acima, ruim. Quanto menor, melhor.")
     )
   })
 
   output$caixa_variancia <- renderUI({
     a <- afe()
-    value_box(
-      title = "Variância explicada",
+    caixa_clara(
+      if (a$total >= 0.5) "bom" else "aceitavel",
+      title = termo("variancia", "Variância explicada"),
       value = fmt_pct(a$total),
-      p(strong(sprintf("Pelos %s juntos.", if (a$nfatores == 1) "1 fator" else paste(a$nfatores, "fatores")))),
-      p(class = "small",
+      p(class = "mb-1", strong(sprintf("Pelos %s juntos.", if (a$nfatores == 1) "1 fator" else paste(a$nfatores, "fatores")))),
+      p(class = "small mb-2",
         sprintf("Em média, os fatores explicam %s da variação das respostas aos itens. O resto é a parte de cada item que não é compartilhada com os outros (inclui o erro de medida).",
                 fmt_pct(a$total))),
-      p(class = "small opacity-75", "Em psicologia, valores a partir de 50% costumam ser considerados bons, mas é comum ficar abaixo disso com questionários de personalidade."),
-      theme = if (a$total >= 0.5) "success" else "primary"
+      nota_caixa("Em psicologia, valores a partir de 50% costumam ser considerados bons, mas é comum ficar abaixo disso com questionários de personalidade.")
     )
   })
 
@@ -992,9 +1018,9 @@ server <- function(input, output, session) {
     div(class = "small text-muted mb-2",
       p(class = "mb-1", "Com rotação oblíqua, existem duas tabelas diferentes:"),
       tags$ul(class = "mb-1",
-        tags$li(strong("Matriz padrão:"), " o efeito ", em("único"), " de cada fator sobre o item, descontando os outros fatores. ",
+        tags$li(termo("matriz_padrao", strong("Matriz padrão:")), " o efeito ", em("único"), " de cada fator sobre o item, descontando os outros fatores. ",
                 "É a que usamos para decidir a que fator cada item pertence."),
-        tags$li(strong("Matriz de estrutura:"), " a correlação simples entre o item e cada fator. ",
+        tags$li(termo("matriz_estrutura", strong("Matriz de estrutura:")), " a correlação simples entre o item e cada fator. ",
                 "Como os fatores se correlacionam, um item acaba se correlacionando um pouco com fatores aos quais não pertence.")),
       p(class = "mb-0", "Só sem correlação entre os fatores (varimax) as duas são iguais — e só aí a carga é a correlação item–fator. ",
         "Nas oblíquas, as porcentagens de variância dos fatores se sobrepõem e não podem ser somadas."))
@@ -1002,13 +1028,69 @@ server <- function(input, output, session) {
 
   output$tabela_cargas <- renderUI(
     tabela_cargas(afe(), input$corte, isTRUE(input$agrupar_cargas),
-                  matriz = if (is.null(input$matriz_cargas)) "padrao" else input$matriz_cargas))
+                  matriz = if (is.null(input$matriz_cargas)) "padrao" else input$matriz_cargas,
+                  nomes = nomes_fatores()))
+
+  # --- Nomes dos fatores (a pessoa escreve; os nomes aparecem em todo o app)
+  nomes_fatores <- reactiveVal(stats::setNames(character(0), character(0)))
+  L_dos_nomes <- reactiveVal(NULL)   # a solução a que os nomes se referem
+
+  # Quando a solução muda, os nomes acompanham os fatores correspondentes
+  observeEvent(afe_com(), {
+    a <- afe_com()
+    if (!isTRUE(a$ok)) return()
+    ant <- isolate(L_dos_nomes())
+    if (!is.null(ant) && !identical(dim(ant), dim(a$L)) || !is.null(ant) && !isTRUE(all.equal(ant, a$L))) {
+      t <- transferir_nomes(isolate(nomes_fatores()), ant, a$L)
+      nomes_fatores(t$nomes)
+      if (length(t$perdidos) > 0) showNotification(
+        sprintf("A solução mudou e alguns fatores não têm mais correspondente, então estes nomes foram retirados: %s.",
+                paste(t$perdidos, collapse = ", ")), type = "warning", duration = 8)
+    }
+    L_dos_nomes(a$L)
+  })
+
+  observeEvent(input$nome_fator, {
+    f <- input$nome_fator$f
+    nome <- trimws(gsub("[<>]", "", substr(as.character(input$nome_fator$nome), 1, 40)))
+    n <- nomes_fatores()
+    n <- n[names(n) != f]
+    if (nzchar(nome)) n[f] <- nome
+    nomes_fatores(n)
+  })
+
+  output$campos_nomes <- renderUI({
+    a <- afe(); al <- alfas()
+    n <- isolate(nomes_fatores())
+    nomes_fatores()   # redesenha quando um nome muda (ex.: transferência)
+    campos <- lapply(seq_len(ncol(a$L)), function(j) {
+      f <- colnames(a$L)[j]
+      dom <- al$fatores[[j]]$dominio
+      div(class = "d-flex align-items-center gap-1",
+          tags$label(`for` = paste0("nome_", f), class = "small fw-semibold text-nowrap", paste0(f, ":")),
+          tags$input(
+            type = "text", id = paste0("nome_", f), class = "form-control form-control-sm",
+            style = "width:11rem;", maxlength = "40",
+            value = nome_de(f, nomes_fatores()),
+            placeholder = if (!is.na(dom)) paste("ex.:", DOMINIOS[[dom]]) else "nome do fator",
+            onchange = sprintf("Shiny.setInputValue('nome_fator', {f: '%s', nome: this.value}, {priority: 'event'})", f)))
+    })
+    div(class = "p-2 mb-2 rounded", style = "background:#f4f3ef;",
+        div(class = "small mb-1", strong("Dê um nome a cada fator"),
+            span(class = "text-muted", " — leia os itens de cada grupo e escreva o que eles têm em comum (depois tecle Enter). O nome aparece nas tabelas, nos gráficos e no relatório.")),
+        div(class = "d-flex flex-wrap gap-3", campos))
+  })
 
   # --- Diagrama do modelo
   output$diagrama <- renderPlot({
     a <- afe()
+    # No diagrama, cada fator aparece com o nome dado pela pessoa (se houver)
+    L <- a$L; Phi <- a$Phi
+    rot <- vapply(colnames(L), function(f) { n <- nome_de(f, nomes_fatores()); if (nzchar(n)) n else f }, "")
+    colnames(L) <- rot
+    if (!is.null(Phi)) dimnames(Phi) <- list(rot, rot)
     graphics::par(mar = c(0.5, 0.5, 0.5, 0.5))
-    psych::fa.diagram(a$L, Phi = a$Phi, cut = input$corte, simple = TRUE,
+    psych::fa.diagram(L, Phi = Phi, cut = input$corte, simple = TRUE,
                       digits = 2, main = "", cex = 0.9)
   }, res = 96)
 
@@ -1119,7 +1201,8 @@ server <- function(input, output, session) {
   output$grafico_depois <- renderPlot({
     a <- afe(); req(ncol(a$L) >= 2)
     e <- eixos()
-    grafico_cargas(a$L, e[1], e[2], input$corte)
+    # O gráfico "depois" mostra os fatores rotacionados — os que têm nome
+    grafico_cargas(a$L, e[1], e[2], input$corte, nomes = nomes_fatores())
   }, res = 96)
 
   output$tabela_rotacao <- renderUI({
@@ -1139,7 +1222,7 @@ server <- function(input, output, session) {
     tagList(
       p(class = "small", HTML(paste0(
         "<strong>Repare:</strong> a variância explicada pelos fatores juntos não muda — a rotação não melhora nem piora o ajuste do modelo (TLI e RMSEA continuam iguais). ",
-        "Ela só redistribui a variância entre os fatores, buscando a chamada <em>estrutura simples</em>: ",
+        "Ela só redistribui a variância entre os fatores, buscando a chamada ", termo_html("estrutura_simples", "<em>estrutura simples</em>"), ": ",
         "cada item com carga forte em um só fator."))),
       p(class = "small text-muted mb-0", textos[[r]])
     )
@@ -1160,9 +1243,9 @@ server <- function(input, output, session) {
     Phi <- a$Phi
     maior <- max(abs(Phi[lower.tri(Phi)]))
     tagList(
-      p("Com uma rotação oblíqua, os fatores podem se correlacionar. A tabela mostra a correlação entre cada par de fatores ",
+      p("Com uma ", termo("obliqua", "rotação oblíqua"), ", os fatores podem se correlacionar. A tabela mostra a correlação entre cada par de fatores ",
         "(cores fortes: |r| ≥ 0,32)."),
-      tabela_phi(Phi),
+      tabela_phi(Phi, nomes = nomes_fatores()),
       if (maior >= 0.32)
         p(selo("bom", sprintf("A maior correlação entre fatores é %s (em módulo).", fmt(maior, 2))),
           " Isso passa de 0,32, o valor que costuma ser usado como referência (Tabachnick & Fidell): os fatores se correlacionam o bastante para justificar uma rotação oblíqua.")
@@ -1174,7 +1257,7 @@ server <- function(input, output, session) {
 
   alfas <- reactive(alfa_por_fator(R_analise(), afe()$L, input$corte, escalas_manuais()))
 
-  output$tabela_alfa <- renderUI(tabela_alfa(alfas()))
+  output$tabela_alfa <- renderUI(tabela_alfa(alfas(), nomes = nomes_fatores()))
 
   output$itens_fora <- renderUI({
     al <- alfas()
@@ -1204,7 +1287,7 @@ server <- function(input, output, session) {
     div(class = "small mt-2 p-2 rounded", style = "background:#f4f3ef;",
       p(class = "mb-1", strong("Alfa ou ômega? "),
         "O alfa supõe que todos os itens do fator têm a mesma carga — o que raramente é verdade. ",
-        "O ", strong("ômega"), " (de McDonald) é calculado a partir das cargas e não faz essa suposição; hoje ele é o mais recomendado. ",
+        "O ", termo("omega", strong("ômega")), " (de McDonald) é calculado a partir das cargas e não faz essa suposição; hoje ele é o mais recomendado. ",
         "Quando os dois ficam parecidos, as cargas dos itens são parecidas; quando o ômega fica bem acima do alfa, as cargas são desiguais."),
       p(class = "mb-0", strong("Cuidado: "),
         "um alfa (ou ômega) alto não prova que o fator mede uma coisa só. Ele também sobe só por haver mais itens. ",
@@ -1321,7 +1404,7 @@ server <- function(input, output, session) {
   output$tabela_itens <- renderUI({
     redesenhar_itens()
     a <- afe_com()
-    if (isTRUE(a$ok)) tabela_itens(diagnostico(), excluidos_d(), alfas(), escalas_manuais())
+    if (isTRUE(a$ok)) tabela_itens(diagnostico(), excluidos_d(), alfas(), escalas_manuais(), nomes = nomes_fatores())
     else tabela_itens(NULL, excluidos_d(), NULL, escalas_manuais())
   })
 
@@ -1375,7 +1458,8 @@ server <- function(input, output, session) {
   estado_missoes <- reactive(c(
     reactiveValuesToList(input),
     list(excluidos = excluidos(), n_excluidos = length(excluidos()),
-         n_manuais = length(escalas_manuais()), tem_guardada = !is.null(solucao_guardada()))))
+         n_manuais = length(escalas_manuais()), tem_guardada = !is.null(solucao_guardada()),
+         n_nomes = sum(nzchar(nomes_fatores())))))
 
   # Guarda o progresso no navegador — pelo ID de cada missão (não pela
   # posição), para que reordenar as missões não bagunce o progresso.
@@ -1430,6 +1514,65 @@ server <- function(input, output, session) {
     salvar_missoes()
   })
 
+  # =====================================================================
+  # Relatório "da sua pesquisa"
+  # =====================================================================
+  ou_vazio <- function(x) if (is.null(x)) "" else as.character(x)
+  rel_autor <- reactiveVal(""); rel_titulo <- reactiveVal(""); rel_justificativa <- reactiveVal("")
+
+  dados_relatorio <- reactive(list(
+    autor = rel_autor(), titulo = rel_titulo(), justificativa = rel_justificativa(),
+    data = format(Sys.Date(), "%d/%m/%Y"),
+    n = nrow(amostra()), completa = n_amostra() >= N_TOTAL, sorteio = semente() - 2025,
+    correlacao = correlacao()$tipo, extracao = input$extracao, rotacao = input$rotacao, corte = input$corte,
+    kmo = kmo(), paralela = paralela(), afe = afe(), alfas = alfas(),
+    nomes = nomes_fatores(), excluidos = excluidos_d(), manuais = escalas_manuais(), diario = diario()))
+
+  formulario_relatorio <- function() modalDialog(
+    title = "Relatório da sua pesquisa",
+    p(class = "small text-muted",
+      "O relatório usa a solução que está escolhida agora no app (número de fatores, extração, rotação, correlação, itens e nomes dos fatores). ",
+      "Os campos abaixo são opcionais."),
+    textInput("rel_autor", "Seu nome", value = rel_autor(), width = "100%"),
+    textInput("rel_titulo", "Título do estudo", value = rel_titulo(), width = "100%",
+              placeholder = "Análise fatorial exploratória de itens do Big Five"),
+    textAreaInput("rel_justificativa", "Justificativa das suas escolhas (missão 20)",
+                  value = rel_justificativa(), width = "100%", rows = 7,
+                  placeholder = "Por que este número de fatores? Por que esta rotação e este tipo de correlação? Por que excluiu (ou manteve) os itens?"),
+    footer = tagList(modalButton("Cancelar"),
+                     actionButton("ver_relatorio", "Gerar relatório", icon = icon("file-lines"), class = "btn-primary")),
+    easyClose = TRUE)
+
+  observeEvent(input$abrir_relatorio, showModal(formulario_relatorio()))
+  observeEvent(input$editar_relatorio, showModal(formulario_relatorio()))
+
+  observeEvent(input$ver_relatorio, {
+    rel_autor(ou_vazio(input$rel_autor))
+    rel_titulo(ou_vazio(input$rel_titulo))
+    rel_justificativa(ou_vazio(input$rel_justificativa))
+    d <- tryCatch(dados_relatorio(), error = function(e) NULL)
+    if (is.null(d)) {
+      showNotification("Não foi possível montar o relatório: o modelo atual não pôde ser estimado.", type = "error")
+      return()
+    }
+    showModal(modalDialog(
+      size = "xl", easyClose = TRUE, title = NULL,
+      div(class = "nao-imprimir small p-2 mb-3 rounded", style = "background:#fdf5e6;",
+          strong("Para salvar em PDF: "), "clique em “Salvar como PDF” e, na janela de impressão, escolha ",
+          em("Salvar como PDF"), " (ou “Microsoft Print to PDF”) como destino."),
+      relatorio_html(d),
+      footer = div(class = "nao-imprimir d-flex flex-wrap gap-2",
+        tags$button(type = "button", class = "btn btn-primary", onclick = "window.print()",
+                    icon("file-pdf"), " Salvar como PDF"),
+        downloadButton("baixar_relatorio", "Baixar (HTML)", class = "btn-outline-secondary"),
+        actionButton("editar_relatorio", "Voltar e editar", icon = icon("pen"), class = "btn-outline-secondary"),
+        modalButton("Fechar"))))
+  })
+
+  output$baixar_relatorio <- downloadHandler(
+    filename = function() "relatorio-afe.html",
+    content = function(arquivo) writeLines(relatorio_pagina(dados_relatorio()), arquivo, useBytes = TRUE))
+
   output$missoes_topo <- renderUI(tagList(
     progresso_missoes(concluidas()),
     botoes_missoes(missao_atual(), concluidas())
@@ -1476,7 +1619,17 @@ server <- function(input, output, session) {
       class = "small mt-2", selo("atencao", sprintf(
         "Você excluiu itens na aba 1 (%s). Esta missão foi pensada com os 25 itens: os resultados podem ficar diferentes do comentário. Para recolocá-los, use “Recolocar todos os itens”, na aba 1.",
         paste(excluidos(), collapse = ", "))))
-    tagList(lista_conferencia(m, ok), botao, aviso_itens)
+    # Na missão final: o relatório "da sua pesquisa" (em destaque depois de concluída)
+    botao_relatorio <- if (identical(m$id, "modelo_final")) div(
+      class = "mt-3 p-2 rounded", style = "background:#eef4fc;",
+      p(class = "small mb-2",
+        strong("Relatório da sua pesquisa: "),
+        "monte um relatório no estilo de artigo, com Método, Resultados, tabelas, as suas decisões e a sua justificativa — e salve em PDF."),
+      tags$button(
+        type = "button", class = paste("btn btn-sm", if (feita) "btn-primary" else "btn-outline-primary"),
+        onclick = "Shiny.setInputValue('abrir_relatorio', Math.random(), {priority: 'event'})",
+        icon("file-lines"), " Gerar o relatório da sua pesquisa"))
+    tagList(lista_conferencia(m, ok), botao, aviso_itens, botao_relatorio)
   })
 }
 

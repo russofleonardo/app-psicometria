@@ -25,8 +25,8 @@ shiny::runApp("app")
 ```
 
 ## Versão para o navegador
-A pasta `docs/` contém a versão Shinylive, que roda direto no navegador, sem servidor. Ela é gerada com:
+A pasta `docs/` contém a versão Shinylive, que roda direto no navegador, sem servidor. Ela é gerada (com a tela de carregamento) por:
 
 ```r
-shinylive::export("app", "docs")
+source("ferramentas/exportar.R")
 ```
