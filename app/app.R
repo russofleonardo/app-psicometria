@@ -240,18 +240,18 @@ painel_missoes <- card(
       type = "button", id = "botao_recolher_missoes",
       class = "botao-recolher btn w-100 d-flex align-items-center gap-2 text-start px-3 py-2",
       `data-bs-toggle` = "collapse", `data-bs-target` = "#corpo_missoes",
-      `aria-expanded` = "true", `aria-controls` = "corpo_missoes",
+      `aria-expanded` = "false", `aria-controls` = "corpo_missoes",
       span(class = "seta", "▾"),
       span(class = "fw-semibold text-nowrap", "Missões guiadas"),
       span(class = "small text-muted text-truncate", style = "min-width:0;",
            uiOutput("missoes_resumo", inline = TRUE)),
-      span(class = "rotulo ms-auto small text-muted text-nowrap")
+      span(class = "rotulo ms-auto small text-nowrap")
     )
   ),
   card_body(
     padding = 0, gap = 0, fillable = FALSE,
     div(
-      id = "corpo_missoes", class = "collapse show",
+      id = "corpo_missoes", class = "collapse",   # começa fechado
       div(
         class = "corpo-missoes p-3",
         uiOutput("missoes_topo"),
@@ -277,17 +277,20 @@ script_missoes <- tags$script(HTML("
     try { localStorage.setItem('afe_missoes', JSON.stringify(x)); } catch (e) {}
   });
 
-  // Lembra se o painel de missões ficou aberto ou fechado
+  // O painel de missões começa fechado. Se a pessoa o deixou aberto da
+  // última vez, ele abre sozinho. Enquanto ela nunca abriu, o botão pulsa.
   $(function() {
     var corpo = document.getElementById('corpo_missoes');
     var botao = document.getElementById('botao_recolher_missoes');
-    var fechado = false;
-    try { fechado = localStorage.getItem('afe_missoes_fechado') === '1'; } catch (e) {}
-    if (fechado) { corpo.classList.remove('show'); botao.setAttribute('aria-expanded', 'false'); }
+    var salvo = null;
+    try { salvo = localStorage.getItem('afe_missoes_fechado'); } catch (e) {}
+    if (salvo === '0') { corpo.classList.add('show'); botao.setAttribute('aria-expanded', 'true'); }
+    if (salvo === null) botao.classList.add('nunca-aberto');
     corpo.addEventListener('hidden.bs.collapse', function() {
       try { localStorage.setItem('afe_missoes_fechado', '1'); } catch (e) {}
     });
     corpo.addEventListener('shown.bs.collapse', function() {
+      botao.classList.remove('nunca-aberto');
       try { localStorage.setItem('afe_missoes_fechado', '0'); } catch (e) {}
     });
   });
@@ -310,8 +313,25 @@ ui <- page_sidebar(
     .botao-recolher:hover { background: rgba(0,0,0,.04); }
     .botao-recolher .seta { display: inline-block; transition: transform .2s; }
     .botao-recolher[aria-expanded='false'] .seta { transform: rotate(-90deg); }
-    .botao-recolher .rotulo::after { content: 'fechar'; }
-    .botao-recolher[aria-expanded='false'] .rotulo::after { content: 'abrir'; }
+    /* Aberto: um 'fechar' discreto. Fechado: um botão azul bem visível. */
+    .botao-recolher .rotulo { color: #6c757d; }
+    .botao-recolher .rotulo::after { content: 'fechar \\25B4'; }
+    .botao-recolher[aria-expanded='false'] .rotulo {
+      color: #fff; background: #2a78d6; border-radius: 999px;
+      padding: .25rem .8rem; font-weight: 600;
+    }
+    .botao-recolher[aria-expanded='false'] .rotulo::after { content: 'Abrir as missões \\25BE'; }
+    .botao-recolher[aria-expanded='false']:hover .rotulo { background: #1f62b3; }
+    .botao-recolher[aria-expanded='false'] { background: #eef4fc; }
+    /* Pulso suave até a pessoa abrir as missões pela primeira vez */
+    @keyframes pulso-missoes {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(42,120,214,.55); }
+      50%      { box-shadow: 0 0 0 7px rgba(42,120,214,0); }
+    }
+    .botao-recolher.nunca-aberto[aria-expanded='false'] .rotulo { animation: pulso-missoes 2s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) {
+      .botao-recolher.nunca-aberto .rotulo { animation: none; }
+    }
     .painel-missoes { height: auto !important; }
     .painel-missoes .corpo-missoes { overflow-y: auto; max-height: 55vh; }
     @media (max-width: 1399.98px) {
